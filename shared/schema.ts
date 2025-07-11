@@ -14,7 +14,7 @@ export const users = pgTable("users", {
 
 export const urls = pgTable("urls", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   longUrl: text("long_url").notNull(),
   shortId: text("short_id").notNull().unique(),
   customAlias: text("custom_alias").unique(),

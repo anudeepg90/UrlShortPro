@@ -14,7 +14,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   
   getUserUrls(userId: number, limit?: number, offset?: number): Promise<Url[]>;
-  createUrl(url: InsertUrl & { userId: number }): Promise<Url>;
+  createUrl(url: InsertUrl & { userId: number | null }): Promise<Url>;
   getUrlByShortId(shortId: string): Promise<Url | undefined>;
   getUrlByCustomAlias(alias: string): Promise<Url | undefined>;
   updateUrl(id: number, updates: Partial<Url>): Promise<Url | undefined>;

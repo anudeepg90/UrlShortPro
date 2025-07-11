@@ -27,7 +27,43 @@ function extractTitle(url: string): string {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Shorten URL endpoint
+  // Public URL shortening (no auth required)
+  app.post("/api/shorten/public", async (req, res) => {
+    try {
+      const { longUrl } = req.body;
+      
+      if (!longUrl) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      // Validate URL format
+      try {
+        new URL(longUrl);
+      } catch {
+        return res.status(400).json({ message: "Invalid URL format" });
+      }
+
+      // Generate unique short ID
+      let shortId: string;
+      do {
+        shortId = generateShortId();
+      } while (await storage.getUrlByShortId(shortId));
+
+      const url = await storage.createUrl({
+        longUrl,
+        shortId,
+        title: extractTitle(longUrl),
+        tags: [],
+        userId: null as any, // Anonymous URL
+      });
+
+      res.status(201).json(url);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to shorten URL" });
+    }
+  });
+
+  // Shorten URL endpoint (authenticated users)
   app.post("/api/shorten", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Authentication required" });
