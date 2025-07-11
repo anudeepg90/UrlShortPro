@@ -27,6 +27,28 @@ function extractTitle(url: string): string {
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Forgot password endpoint (placeholder - would normally send email)
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // In a real application, you would:
+      // 1. Check if user exists
+      // 2. Generate a secure reset token
+      // 3. Store token in database with expiration
+      // 4. Send email with reset link
+      
+      // For demo purposes, we'll just return success
+      res.status(200).json({ message: "Password reset email sent" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process password reset" });
+    }
+  });
+
   // Public URL shortening (no auth required)
   app.post("/api/shorten/public", async (req, res) => {
     try {

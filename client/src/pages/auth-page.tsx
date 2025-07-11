@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link as RouterLink } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, BarChart3, Shield, Zap } from "lucide-react";
+import { Link, BarChart3, Shield, Zap, Home, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = insertUserSchema.pick({ username: true, password: true });
 const registerSchema = insertUserSchema.extend({
@@ -20,12 +21,20 @@ const registerSchema = insertUserSchema.extend({
   path: ["confirmPassword"],
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
 type LoginData = z.infer<typeof loginSchema>;
 type RegisterData = z.infer<typeof registerSchema>;
+type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
   const loginForm = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
@@ -45,9 +54,16 @@ export default function AuthPage() {
     },
   });
 
+  const forgotPasswordForm = useForm<ForgotPasswordData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
   // Redirect if already authenticated
   if (user) {
-    return <Redirect to="/" />;
+    return <Redirect to="/dashboard" />;
   }
 
   const onLogin = (data: LoginData) => {
@@ -59,10 +75,151 @@ export default function AuthPage() {
     registerMutation.mutate(userData);
   };
 
+  const onForgotPassword = async (data: ForgotPasswordData) => {
+    try {
+      const response = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        setForgotPasswordSent(true);
+        toast({
+          title: "Reset link sent",
+          description: "Check your email for password reset instructions.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to send reset email. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send reset email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Link className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold">LinkVault</span>
+            </div>
+            <CardTitle>Reset Password</CardTitle>
+            <CardDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {forgotPasswordSent ? (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <Shield className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold">Check your email</h3>
+                <p className="text-gray-600">
+                  We've sent password reset instructions to your email address.
+                </p>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotPasswordSent(false);
+                    }}
+                    className="flex-1"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Sign In
+                  </Button>
+                  <RouterLink href="/" className="flex-1">
+                    <Button variant="ghost" className="w-full">
+                      <Home className="h-4 w-4 mr-2" />
+                      Home
+                    </Button>
+                  </RouterLink>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPassword)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="forgot-email">Email</Label>
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    {...forgotPasswordForm.register("email")}
+                    placeholder="Enter your email address"
+                  />
+                  {forgotPasswordForm.formState.errors.email && (
+                    <p className="text-sm text-red-600">{forgotPasswordForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                
+                <Button type="submit" className="w-full">
+                  Send Reset Link
+                </Button>
+                
+                <div className="flex space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="flex-1"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <RouterLink href="/" className="flex-1">
+                    <Button variant="ghost" className="w-full">
+                      <Home className="h-4 w-4 mr-2" />
+                      Home
+                    </Button>
+                  </RouterLink>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Column - Auth Forms */}
-      <div className="flex-1 flex items-center justify-center p-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Navigation Bar */}
+      <div className="p-4 border-b bg-white">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Link className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold">LinkVault</span>
+          </div>
+          <RouterLink href="/">
+            <Button variant="outline" size="sm">
+              <Home className="h-4 w-4 mr-2" />
+              Back to Home
+            </Button>
+          </RouterLink>
+        </div>
+      </div>
+
+      <div className="flex-1 flex">
+        {/* Left Column - Auth Forms */}
+        <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center space-x-2 mb-4">
@@ -108,6 +265,17 @@ export default function AuthPage() {
                     {loginForm.formState.errors.password && (
                       <p className="text-sm text-red-600">{loginForm.formState.errors.password.message}</p>
                     )}
+                  </div>
+                  
+                  <div className="text-right mb-4">
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm p-0 h-auto"
+                    >
+                      Forgot password?
+                    </Button>
                   </div>
                   
                   <Button
@@ -183,6 +351,26 @@ export default function AuthPage() {
                 </form>
               </TabsContent>
             </Tabs>
+            
+            {/* Navigation buttons */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex space-x-2">
+                <RouterLink href="/" className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    <Home className="h-4 w-4 mr-2" />
+                    Continue as Guest
+                  </Button>
+                </RouterLink>
+                <RouterLink href="/" className="flex-1">
+                  <Button variant="ghost" className="w-full">
+                    Cancel
+                  </Button>
+                </RouterLink>
+              </div>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                You can still shorten URLs without an account
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -223,6 +411,7 @@ export default function AuthPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

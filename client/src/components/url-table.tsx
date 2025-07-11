@@ -19,10 +19,12 @@ import {
   Trash2, 
   BarChart3, 
   Globe,
-  Search
+  Search,
+  Crown
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import EditUrlModal from "@/components/edit-url-modal";
 
 interface Url {
   id: number;
@@ -45,6 +47,8 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUrl, setSelectedUrl] = useState<Url | null>(null);
 
   const { data: urls, isLoading } = useQuery<Url[]>({
     queryKey: ["/api/urls", { page, search: searchQuery }],
@@ -96,6 +100,11 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
     if (confirm("Are you sure you want to delete this URL? This action cannot be undone.")) {
       deleteUrlMutation.mutate(urlId);
     }
+  };
+
+  const handleEdit = (url: Url) => {
+    setSelectedUrl(url);
+    setShowEditModal(true);
   };
 
   const filteredUrls = urls?.filter(url => 
@@ -225,16 +234,16 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        {user?.isPremium && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            title="Edit Alias"
-                          >
-                            <Edit className="h-3 w-3 text-primary" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(url)}
+                          className="h-6 w-6 p-0"
+                          title={user?.isPremium ? "Edit URL" : "Edit URL (Premium)"}
+                        >
+                          <Edit className="h-3 w-3 text-primary" />
+                          {!user?.isPremium && <Crown className="h-2 w-2 ml-0.5 text-accent" />}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -254,6 +263,12 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
           </div>
         )}
       </div>
+
+      <EditUrlModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        url={selectedUrl}
+      />
     </div>
   );
 }
