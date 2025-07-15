@@ -10,8 +10,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export const supabaseHelpers = {
   // Get user by ID
   async getUserById(id: number) {
-    console.log("🔍 [SUPABASE] Getting user by ID:", id);
-    
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -19,11 +17,8 @@ export const supabaseHelpers = {
       .single();
     
     if (error) {
-      console.log("❌ [SUPABASE] Error getting user by ID:", error);
       throw error;
     }
-    
-    console.log("✅ [SUPABASE] Raw user data from database:", data);
     
     // Transform snake_case to camelCase for frontend compatibility
     const transformedUser = {
@@ -35,7 +30,6 @@ export const supabaseHelpers = {
       createdAt: data.created_at,
     };
     
-    console.log("✅ [SUPABASE] Transformed user data:", transformedUser);
     return transformedUser;
   },
 
@@ -104,8 +98,6 @@ export const supabaseHelpers = {
 
   // Get URLs by user ID
   async getUserUrls(userId: number, limit = 10, offset = 0) {
-    console.log("📋 [SUPABASE] Getting URLs for user:", { userId, limit, offset });
-    
     const { data, error } = await supabase
       .from('urls')
       .select('*')
@@ -114,11 +106,8 @@ export const supabaseHelpers = {
       .range(offset, offset + limit - 1);
     
     if (error) {
-      console.error("❌ [SUPABASE] Error getting URLs:", error);
       throw error;
     }
-    
-    console.log("✅ [SUPABASE] Raw URLs from database:", data?.length || 0);
     
     // Transform snake_case to camelCase for frontend compatibility
     const transformedUrls = (data || []).map(url => ({
@@ -134,7 +123,6 @@ export const supabaseHelpers = {
       lastAccessedAt: url.last_accessed_at,
     }));
     
-    console.log("✅ [SUPABASE] Transformed URLs:", transformedUrls.length);
     return transformedUrls;
   },
 
@@ -197,8 +185,6 @@ export const supabaseHelpers = {
     title?: string;
     tags?: string[];
   }) {
-    console.log("📝 [SUPABASE] Creating URL with data:", urlData);
-    
     const { data, error } = await supabase
       .from('urls')
       .insert(urlData)
@@ -206,11 +192,8 @@ export const supabaseHelpers = {
       .single();
     
     if (error) {
-      console.error("❌ [SUPABASE] Error creating URL:", error);
       throw error;
     }
-    
-    console.log("✅ [SUPABASE] Raw data from database:", data);
     
     // Transform snake_case to camelCase for frontend compatibility
     const transformedData = {
@@ -226,7 +209,6 @@ export const supabaseHelpers = {
       lastAccessedAt: data.last_accessed_at,
     };
     
-    console.log("🔄 [SUPABASE] Transformed data:", transformedData);
     return transformedData;
   },
 

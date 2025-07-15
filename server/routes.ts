@@ -59,13 +59,10 @@ export function registerRoutes(app: Express): Server {
 
   // Public URL shortening (no auth required)
   app.post("/api/shorten/public", async (req, res) => {
-    console.log("🔗 [PUBLIC] Shorten request received:", req.body);
-    
     try {
       const { longUrl, customAlias } = req.body;
       
       if (!longUrl) {
-        console.log("❌ [PUBLIC] No URL provided");
         return res.status(400).json({ message: "URL is required" });
       }
 
@@ -73,16 +70,13 @@ export function registerRoutes(app: Express): Server {
       try {
         new URL(longUrl);
       } catch {
-        console.log("❌ [PUBLIC] Invalid URL format:", longUrl);
         return res.status(400).json({ message: "Invalid URL format" });
       }
 
       // Check if custom alias is provided and available
       if (customAlias) {
-        console.log("🔍 [PUBLIC] Checking custom alias:", customAlias);
         const existing = await storage.getUrlByCustomAlias(customAlias);
         if (existing) {
-          console.log("❌ [PUBLIC] Custom alias already taken");
           return res.status(400).json({ message: "Custom alias already taken" });
         }
       }
@@ -93,15 +87,11 @@ export function registerRoutes(app: Express): Server {
       do {
         shortId = customAlias || generateShortId();
         attempts++;
-        console.log(`🔄 [PUBLIC] Generated shortId attempt ${attempts}:`, shortId);
       } while (!customAlias && await storage.getUrlByShortId(shortId) && attempts < 10);
 
       if (attempts >= 10) {
-        console.log("❌ [PUBLIC] Failed to generate unique shortId after 10 attempts");
         return res.status(500).json({ message: "Failed to generate unique short ID" });
       }
-
-      console.log("✅ [PUBLIC] Final shortId:", shortId);
 
       const urlData = {
         longUrl,
@@ -112,49 +102,34 @@ export function registerRoutes(app: Express): Server {
         userId: 0, // Anonymous URL (user ID 0 represents anonymous)
       };
 
-      console.log("📝 [PUBLIC] Creating URL with data:", urlData);
-
       const url = await storage.createUrl(urlData);
-      console.log("✅ [PUBLIC] URL created successfully:", { id: url.id, shortId: url.shortId, customAlias: url.customAlias });
 
       res.status(201).json(url);
     } catch (error) {
-      console.error("❌ [PUBLIC] Error in shorten endpoint:", error);
+      console.error("Error in public shorten endpoint:", error);
       res.status(500).json({ message: "Failed to shorten URL" });
     }
   });
 
   // Shorten URL endpoint (authenticated users)
   app.post("/api/shorten", async (req, res) => {
-    console.log("🔗 [AUTH] ===== SHORTEN ENDPOINT HIT =====");
-    console.log("🔗 [AUTH] Request headers:", req.headers);
-    console.log("🔗 [AUTH] Session:", req.session);
-    console.log("🔗 [AUTH] Is authenticated:", req.isAuthenticated());
-    console.log("🔗 [AUTH] User:", req.user);
-    console.log("🔗 [AUTH] Shorten request received:", { body: req.body, user: req.user });
-    
     if (!req.isAuthenticated()) {
-      console.log("❌ [AUTH] User not authenticated");
       return res.status(401).json({ message: "Authentication required" });
     }
 
     try {
       const data = frontendUrlSchema.parse(req.body);
       const user = req.user!;
-      console.log("✅ [AUTH] Data validated, user:", { userId: user.id, username: user.username });
 
       // Check if custom alias is provided and user is premium
       if (data.customAlias && !user.isPremium) {
-        console.log("❌ [AUTH] Custom alias requested but user not premium");
         return res.status(403).json({ message: "Custom aliases require premium subscription" });
       }
 
       // Check if custom alias is already taken
       if (data.customAlias) {
-        console.log("🔍 [AUTH] Checking custom alias:", data.customAlias);
         const existing = await storage.getUrlByCustomAlias(data.customAlias);
         if (existing) {
-          console.log("❌ [AUTH] Custom alias already taken");
           return res.status(400).json({ message: "Custom alias already taken" });
         }
       }
@@ -165,15 +140,11 @@ export function registerRoutes(app: Express): Server {
       do {
         shortId = generateShortId();
         attempts++;
-        console.log(`🔄 [AUTH] Generated shortId attempt ${attempts}:`, shortId);
       } while (await storage.getUrlByShortId(shortId) && attempts < 10);
 
       if (attempts >= 10) {
-        console.log("❌ [AUTH] Failed to generate unique shortId after 10 attempts");
         return res.status(500).json({ message: "Failed to generate unique short ID" });
       }
-
-      console.log("✅ [AUTH] Final shortId:", shortId);
 
       const urlData = {
         ...data,
@@ -183,16 +154,12 @@ export function registerRoutes(app: Express): Server {
         tags: data.tags || [],
       };
 
-      console.log("📝 [AUTH] Creating URL with data:", urlData);
-
       const url = await storage.createUrl(urlData);
-      console.log("✅ [AUTH] URL created successfully:", { id: url.id, shortId: url.shortId, customAlias: url.customAlias });
 
       res.status(201).json(url);
     } catch (error) {
-      console.error("❌ [AUTH] Error in shorten endpoint:", error);
+      console.error("Error in shorten endpoint:", error);
       if (error instanceof z.ZodError) {
-        console.log("❌ [AUTH] Validation error:", error.errors);
         return res.status(400).json({ message: "Invalid input data" });
       }
       res.status(500).json({ message: "Failed to shorten URL" });
@@ -319,11 +286,7 @@ export function registerRoutes(app: Express): Server {
 
   // Get user's URLs (authenticated users)
   app.get("/api/urls", async (req, res) => {
-    console.log("📋 [URLS] Fetching URLs for user:", req.user?.id);
-    console.log("📋 [URLS] Query params:", req.query);
-    
     if (!req.isAuthenticated()) {
-      console.log("❌ [URLS] User not authenticated");
       return res.status(401).json({ message: "Authentication required" });
     }
 
@@ -332,12 +295,10 @@ export function registerRoutes(app: Express): Server {
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = (page - 1) * limit;
 
-      console.log("📋 [URLS] Fetching with params:", { page, limit, offset, userId: req.user!.id });
       const urls = await storage.getUserUrls(req.user!.id, limit, offset);
-      console.log("✅ [URLS] Found URLs:", urls.length);
       res.json(urls);
     } catch (error) {
-      console.error("❌ [URLS] Error fetching URLs:", error);
+      console.error("Error fetching URLs:", error);
       res.status(500).json({ message: "Failed to fetch URLs" });
     }
   });

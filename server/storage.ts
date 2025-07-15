@@ -39,13 +39,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    console.log("🔍 [STORAGE] Getting user by ID:", id);
     try {
       const user = await supabaseHelpers.getUserById(id);
-      console.log("✅ [STORAGE] User found:", user);
       return user as User;
     } catch (error) {
-      console.log("❌ [STORAGE] Error getting user:", error);
       return undefined;
     }
   }
@@ -70,15 +67,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserUrls(userId: number, limit = 10, offset = 0): Promise<Url[]> {
-    console.log("📋 [STORAGE] Getting URLs for user:", { userId, limit, offset });
     const urls = await supabaseHelpers.getUserUrls(userId, limit, offset);
-    console.log("✅ [STORAGE] Found URLs:", urls.length);
     return urls as Url[];
   }
 
   async createUrl(url: InsertUrl & { userId: number }): Promise<Url> {
-    console.log("📝 [STORAGE] Creating URL with input:", url);
-    
     const newUrl = await supabaseHelpers.createUrl({
       user_id: url.userId === 0 ? null : url.userId, // Handle anonymous URLs
       long_url: url.longUrl,
@@ -87,9 +80,6 @@ export class DatabaseStorage implements IStorage {
       title: url.title || undefined,
       tags: url.tags || undefined
     });
-    
-    console.log("✅ [STORAGE] URL created in Supabase:", newUrl);
-    console.log("🔍 [STORAGE] Checking shortId field:", { shortId: newUrl.shortId, customAlias: newUrl.customAlias });
     
     return newUrl as Url;
   }

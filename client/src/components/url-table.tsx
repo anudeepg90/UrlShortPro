@@ -64,16 +64,13 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   const { data: urls, isLoading } = useQuery<Url[]>({
     queryKey: ["/api/urls"],
     queryFn: async () => {
-      console.log("🔍 [URL-TABLE] Fetching URLs with params:", { page, limit: 10 });
       const response = await fetch(`/api/urls?page=${page}&limit=10`, {
         credentials: "include",
       });
       if (!response.ok) {
-        console.error("❌ [URL-TABLE] Failed to fetch URLs:", response.status);
         throw new Error("Failed to fetch URLs");
       }
       const data = await response.json();
-      console.log("✅ [URL-TABLE] Fetched URLs:", data);
       return data;
     },
   });
@@ -151,13 +148,6 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
     url.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     url.customAlias?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
-  
-  console.log("🔍 [URL-TABLE] URLs state:", { 
-    urls: urls?.length || 0, 
-    filteredUrls: filteredUrls.length,
-    searchQuery,
-    isLoading 
-  });
 
   if (isLoading) {
     return (

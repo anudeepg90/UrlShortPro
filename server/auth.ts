@@ -36,29 +36,14 @@ export function setupAuth(app: Express) {
     store: storage.sessionStore,
   };
 
-  console.log("🔧 [AUTH] Setting up auth with session settings:", {
-    secret: sessionSettings.secret ? "***" : "undefined",
-    resave: sessionSettings.resave,
-    saveUninitialized: sessionSettings.saveUninitialized,
-    store: sessionSettings.store ? "MemoryStore" : "undefined"
-  });
+
 
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
   
-  // Add middleware to log session state for authenticated endpoints
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api/shorten') || req.path === '/api/user') {
-      console.log("🔍 [MIDDLEWARE] Request to:", req.path);
-      console.log("🔍 [MIDDLEWARE] Session ID:", req.sessionID);
-      console.log("🔍 [MIDDLEWARE] Session:", req.session);
-      console.log("🔍 [MIDDLEWARE] Is authenticated:", req.isAuthenticated());
-      console.log("🔍 [MIDDLEWARE] User:", req.user);
-    }
-    next();
-  });
+
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
@@ -72,13 +57,10 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    console.log("📝 [AUTH] Serializing user:", { id: user.id, username: user.username });
     done(null, user.id);
   });
   passport.deserializeUser(async (id: number, done) => {
-    console.log("🔄 [AUTH] Deserializing user with ID:", id);
     const user = await storage.getUser(id);
-    console.log("🔄 [AUTH] Deserialized user:", user);
     done(null, user);
   });
 
@@ -117,9 +99,6 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    console.log("🔐 [AUTH] Login successful for user:", { id: req.user?.id, username: req.user?.username });
-    console.log("🔐 [AUTH] Session after login:", req.session);
-    console.log("🔐 [AUTH] Is authenticated:", req.isAuthenticated());
     res.status(200).json(req.user);
   });
 
@@ -131,17 +110,10 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    console.log("👤 [AUTH] /api/user endpoint hit");
-    console.log("👤 [AUTH] Session:", req.session);
-    console.log("👤 [AUTH] Is authenticated:", req.isAuthenticated());
-    console.log("👤 [AUTH] User:", req.user);
-    
     if (!req.isAuthenticated()) {
-      console.log("❌ [AUTH] User not authenticated");
       return res.sendStatus(401);
     }
     
-    console.log("✅ [AUTH] User authenticated, returning:", req.user);
     res.json(req.user);
   });
 }

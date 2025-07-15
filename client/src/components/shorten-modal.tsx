@@ -15,8 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
 import { useState } from "react";
 
-// Log the schema to see what fields it expects
-console.log("🔍 [FRONTEND] insertUrlSchema:", insertUrlSchema.shape);
+
 
 const shortenSchema = insertUrlSchema.extend({
   longUrl: z.string().url("Please enter a valid URL"),
@@ -50,20 +49,11 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
 
   const shortenMutation = useMutation({
     mutationFn: async (data: ShortenData) => {
-      console.log("🔗 [FRONTEND] Sending shorten request:", data);
-      console.log("🔗 [FRONTEND] User context:", user);
-      
       const response = await apiRequest("POST", "/api/shorten", data);
-      console.log("🔗 [FRONTEND] Response status:", response.status);
-      
       const result = await response.json();
-      console.log("✅ [FRONTEND] Shorten response received:", result);
       return result;
     },
     onSuccess: (data) => {
-      console.log("🎉 [FRONTEND] Shorten success, data:", data);
-      console.log("🔍 [FRONTEND] Checking shortId:", { shortId: data.shortId, customAlias: data.customAlias });
-      
       // Invalidate all URL-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ["/api/urls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
@@ -76,7 +66,7 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
       });
     },
     onError: (error: Error) => {
-      console.error("❌ [FRONTEND] Shorten error:", error);
+      console.error("Error shortening URL:", error);
       toast({
         title: "Failed to shorten URL",
         description: error.message,
@@ -87,12 +77,6 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
 
   const getShortUrl = (url: any) => {
     const shortUrl = `${window.location.origin}/${url.customAlias || url.shortId}`;
-    console.log("🔗 [FRONTEND] Generated short URL:", { 
-      original: url, 
-      shortId: url.shortId, 
-      customAlias: url.customAlias, 
-      result: shortUrl 
-    });
     return shortUrl;
   };
 
@@ -125,11 +109,6 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
   };
 
   const onSubmit = (data: ShortenData) => {
-    console.log("📝 [FRONTEND] Form submitted with data:", data);
-    console.log("📝 [FRONTEND] Form errors:", form.formState.errors);
-    console.log("📝 [FRONTEND] Is form valid:", form.formState.isValid);
-    console.log("📝 [FRONTEND] Form values:", form.getValues());
-    
     // Handle tags - they can be either string array or comma-separated string
     let tagsArray: string[] = [];
     if (data.tags) {
@@ -145,8 +124,6 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
       tags: tagsArray,
     };
     
-    console.log("📝 [FRONTEND] Final data to send:", finalData);
-    console.log("📝 [FRONTEND] User context:", user);
     shortenMutation.mutate(finalData);
   };
 
