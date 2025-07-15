@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
-import { Link, LogOut } from "lucide-react";
+import { Link, LogOut, Crown } from "lucide-react";
 
 export default function DashboardHeader() {
   const { user, logoutMutation } = useAuth();
@@ -22,17 +22,19 @@ export default function DashboardHeader() {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-2">
-              <span className="text-sm text-gray-600">{user?.email}</span>
+            <div className="flex items-center space-x-3">
+              <span className="hidden sm:block text-sm text-gray-600">{user?.email}</span>
               {user?.isPremium && (
-                <span className="bg-accent text-white text-xs px-2 py-1 rounded-full font-medium">
-                  PREMIUM
-                </span>
+                <div className="flex items-center space-x-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full font-medium shadow-sm">
+                  <Crown className="h-3 w-3" />
+                  <span className="hidden sm:inline">PREMIUM</span>
+                  <span className="sm:hidden">PRO</span>
+                </div>
               )}
             </div>
             <button 
               onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
+              className="text-gray-600 hover:text-gray-900 transition-colors p-2 rounded-lg hover:bg-gray-100"
               disabled={logoutMutation.isPending}
             >
               <LogOut className="h-5 w-5" />

@@ -20,11 +20,20 @@ import {
   BarChart3, 
   Globe,
   Search,
-  Crown
+  Crown,
+  ExternalLink,
+  QrCode
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import EditUrlModal from "@/components/edit-url-modal";
+import { QRCodeCanvas } from 'qrcode.react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Url {
   id: number;
@@ -49,9 +58,24 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   const [page, setPage] = useState(1);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUrl, setSelectedUrl] = useState<Url | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string>("");
 
   const { data: urls, isLoading } = useQuery<Url[]>({
-    queryKey: ["/api/urls", { page, search: searchQuery }],
+    queryKey: ["/api/urls"],
+    queryFn: async () => {
+      console.log("🔍 [URL-TABLE] Fetching URLs with params:", { page, limit: 10 });
+      const response = await fetch(`/api/urls?page=${page}&limit=10`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        console.error("❌ [URL-TABLE] Failed to fetch URLs:", response.status);
+        throw new Error("Failed to fetch URLs");
+      }
+      const data = await response.json();
+      console.log("✅ [URL-TABLE] Fetched URLs:", data);
+      return data;
+    },
   });
 
   const deleteUrlMutation = useMutation({
@@ -107,20 +131,42 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
     setShowEditModal(true);
   };
 
+  const handleShowQr = (url: Url) => {
+    setQrUrl(getShortUrl(url));
+    setShowQrModal(true);
+  };
+
+  const downloadQrCode = () => {
+    const canvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const image = canvas.toDataURL('image/jpeg', 1.0);
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = 'short-url-qr.jpg';
+    link.click();
+  };
+
   const filteredUrls = urls?.filter(url => 
     url.longUrl.toLowerCase().includes(searchQuery.toLowerCase()) ||
     url.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     url.customAlias?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+  
+  console.log("🔍 [URL-TABLE] URLs state:", { 
+    urls: urls?.length || 0, 
+    filteredUrls: filteredUrls.length,
+    searchQuery,
+    isLoading 
+  });
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-3">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="animate-pulse space-y-6">
+          <div className="h-10 bg-gray-200 rounded-lg w-1/3"></div>
+          <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-100 rounded"></div>
+              <div key={i} className="h-20 bg-gray-100 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -131,128 +177,164 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   return (
     <div className="space-y-6">
       {/* Search Bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <Input
             type="text"
             placeholder="Search URLs, aliases, or tags..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-12 h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
       </div>
 
       {/* URLs Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Your Links</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <Globe className="h-5 w-5 text-blue-600" />
+            Your Links
+            <Badge variant="secondary" className="ml-2">
+              {filteredUrls.length}
+            </Badge>
+          </h3>
         </div>
         
         {filteredUrls.length === 0 ? (
-          <div className="p-8 text-center">
-            <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No URLs found</h3>
-            <p className="text-gray-600">
+          <div className="p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Globe className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No URLs found</h3>
+            <p className="text-gray-600 max-w-sm mx-auto">
               {searchQuery ? "No URLs match your search criteria." : "Create your first shortened URL to get started."}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="w-full">
               <TableHeader>
-                <TableRow>
-                  <TableHead>URL</TableHead>
-                  <TableHead>Short Link</TableHead>
-                  <TableHead>Clicks</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
+                <TableRow className="border-b border-gray-100 bg-gray-50/30">
+                  <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[35%]">Original URL</TableHead>
+                  <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[25%]">Short Link</TableHead>
+                  <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[15%] text-center">Clicks</TableHead>
+                  <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[15%]">Created</TableHead>
+                  <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[10%] text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUrls.map((url) => (
-                  <TableRow key={url.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div className="flex items-start space-x-3">
+                  <TableRow key={url.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100">
+                    <TableCell className="py-6 px-6 align-top">
+                      <div className="flex items-start gap-4">
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Globe className="text-gray-500 h-4 w-4" />
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                            <ExternalLink className="text-white h-5 w-5" />
                           </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {url.title || "Shortened Link"}
-                          </p>
-                          <p className="text-sm text-gray-500 truncate">{url.longUrl}</p>
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 mb-2">
+                              {url.title || "Shortened Link"}
+                            </p>
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                              <p className="text-sm text-gray-600 break-all leading-relaxed">
+                                {url.longUrl}
+                              </p>
+                            </div>
+                          </div>
                           {url.tags && url.tags.length > 0 && (
-                            <div className="flex items-center space-x-1 mt-1">
-                              {url.tags.map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {url.tags.slice(0, 3).map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs px-2 py-1">
                                   {tag}
                                 </Badge>
                               ))}
+                              {url.tags.length > 3 && (
+                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                  +{url.tags.length - 3} more
+                                </Badge>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <code className="text-sm text-primary font-mono">
-                          {url.customAlias || url.shortId}
-                        </code>
+                    <TableCell className="py-6 px-6 align-top">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex-1 min-w-0">
+                          <code className="text-sm font-mono text-blue-700 break-all block">
+                            {url.customAlias || url.shortId}
+                          </code>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => copyToClipboard(getShortUrl(url))}
-                          className="h-6 w-6 p-0"
+                          className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
+                          title="Copy to clipboard"
                         >
-                          <Copy className="h-3 w-3" />
+                          <Copy className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-900">
-                          {url.clickCount}
-                        </span>
-                        {user?.isPremium && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onShowAnalytics(url.id)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <BarChart3 className="h-3 w-3 text-primary" />
-                          </Button>
-                        )}
+                    <TableCell className="py-6 px-6 align-top">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="bg-gray-100 rounded-full px-3 py-1">
+                          <span className="text-sm font-semibold text-gray-900">
+                            {url.clickCount}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onShowAnalytics(url.id)}
+                          className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                          title="View analytics"
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {format(new Date(url.createdAt), "MMM dd, yyyy")}
+                    <TableCell className="py-6 px-6 align-top">
+                      <div className="text-sm text-gray-600">
+                        {format(new Date(url.createdAt), "MMM dd, yyyy")}
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
+                    <TableCell className="py-6 px-6 align-top">
+                      <div className="flex items-center justify-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(url)}
-                          className="h-6 w-6 p-0"
-                          title={user?.isPremium ? "Edit URL" : "Edit URL (Premium)"}
+                          className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-600 transition-colors relative"
+                          title="Edit URL"
                         >
-                          <Edit className="h-3 w-3 text-primary" />
-                          {!user?.isPremium && <Crown className="h-2 w-2 ml-0.5 text-accent" />}
+                          <Edit className="h-4 w-4" />
+                          {user?.isPremium && (
+                            <Crown className="h-3 w-3 text-amber-500 absolute -top-1 -right-1" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleShowQr(url)}
+                          className="h-8 w-8 p-0 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                          title="Show QR Code"
+                        >
+                          <QrCode className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(url.id)}
-                          className="h-6 w-6 p-0"
-                          title="Delete"
+                          className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          title="Delete URL"
                           disabled={deleteUrlMutation.isPending}
                         >
-                          <Trash2 className="h-3 w-3 text-red-600" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -269,6 +351,40 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
         onClose={() => setShowEditModal(false)}
         url={selectedUrl}
       />
+
+      {/* QR Code Modal */}
+      <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>QR Code for Short URL</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4">
+            <QRCodeCanvas
+              id="qr-code-canvas"
+              value={qrUrl}
+              size={200}
+              level="M"
+              includeMargin={true}
+            />
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={downloadQrCode}
+                className="flex items-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <span>Download</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowQrModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

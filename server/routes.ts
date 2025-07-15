@@ -24,6 +24,14 @@ function extractTitle(url: string): string {
   }
 }
 
+// Create a schema for frontend input (excludes server-generated fields)
+const frontendUrlSchema = z.object({
+  longUrl: z.string().url("Please enter a valid URL"),
+  customAlias: z.string().optional(),
+  title: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
@@ -51,10 +59,13 @@ export function registerRoutes(app: Express): Server {
 
   // Public URL shortening (no auth required)
   app.post("/api/shorten/public", async (req, res) => {
+    console.log("🔗 [PUBLIC] Shorten request received:", req.body);
+    
     try {
-      const { longUrl } = req.body;
+      const { longUrl, customAlias } = req.body;
       
       if (!longUrl) {
+        console.log("❌ [PUBLIC] No URL provided");
         return res.status(400).json({ message: "URL is required" });
       }
 
@@ -62,69 +73,126 @@ export function registerRoutes(app: Express): Server {
       try {
         new URL(longUrl);
       } catch {
+        console.log("❌ [PUBLIC] Invalid URL format:", longUrl);
         return res.status(400).json({ message: "Invalid URL format" });
       }
 
-      // Generate unique short ID
-      let shortId: string;
-      do {
-        shortId = generateShortId();
-      } while (await storage.getUrlByShortId(shortId));
-
-      const url = await storage.createUrl({
-        longUrl,
-        shortId,
-        title: extractTitle(longUrl),
-        tags: [],
-        userId: null as any, // Anonymous URL
-      });
-
-      res.status(201).json(url);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to shorten URL" });
-    }
-  });
-
-  // Shorten URL endpoint (authenticated users)
-  app.post("/api/shorten", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
-    try {
-      const data = insertUrlSchema.parse(req.body);
-      const user = req.user!;
-
-      // Check if custom alias is provided and user is premium
-      if (data.customAlias && !user.isPremium) {
-        return res.status(403).json({ message: "Custom aliases require premium subscription" });
-      }
-
-      // Check if custom alias is already taken
-      if (data.customAlias) {
-        const existing = await storage.getUrlByCustomAlias(data.customAlias);
+      // Check if custom alias is provided and available
+      if (customAlias) {
+        console.log("🔍 [PUBLIC] Checking custom alias:", customAlias);
+        const existing = await storage.getUrlByCustomAlias(customAlias);
         if (existing) {
+          console.log("❌ [PUBLIC] Custom alias already taken");
           return res.status(400).json({ message: "Custom alias already taken" });
         }
       }
 
       // Generate unique short ID
       let shortId: string;
+      let attempts = 0;
+      do {
+        shortId = customAlias || generateShortId();
+        attempts++;
+        console.log(`🔄 [PUBLIC] Generated shortId attempt ${attempts}:`, shortId);
+      } while (!customAlias && await storage.getUrlByShortId(shortId) && attempts < 10);
+
+      if (attempts >= 10) {
+        console.log("❌ [PUBLIC] Failed to generate unique shortId after 10 attempts");
+        return res.status(500).json({ message: "Failed to generate unique short ID" });
+      }
+
+      console.log("✅ [PUBLIC] Final shortId:", shortId);
+
+      const urlData = {
+        longUrl,
+        shortId,
+        customAlias: customAlias || undefined,
+        title: extractTitle(longUrl),
+        tags: [],
+        userId: 0, // Anonymous URL (user ID 0 represents anonymous)
+      };
+
+      console.log("📝 [PUBLIC] Creating URL with data:", urlData);
+
+      const url = await storage.createUrl(urlData);
+      console.log("✅ [PUBLIC] URL created successfully:", { id: url.id, shortId: url.shortId, customAlias: url.customAlias });
+
+      res.status(201).json(url);
+    } catch (error) {
+      console.error("❌ [PUBLIC] Error in shorten endpoint:", error);
+      res.status(500).json({ message: "Failed to shorten URL" });
+    }
+  });
+
+  // Shorten URL endpoint (authenticated users)
+  app.post("/api/shorten", async (req, res) => {
+    console.log("🔗 [AUTH] ===== SHORTEN ENDPOINT HIT =====");
+    console.log("🔗 [AUTH] Request headers:", req.headers);
+    console.log("🔗 [AUTH] Session:", req.session);
+    console.log("🔗 [AUTH] Is authenticated:", req.isAuthenticated());
+    console.log("🔗 [AUTH] User:", req.user);
+    console.log("🔗 [AUTH] Shorten request received:", { body: req.body, user: req.user });
+    
+    if (!req.isAuthenticated()) {
+      console.log("❌ [AUTH] User not authenticated");
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const data = frontendUrlSchema.parse(req.body);
+      const user = req.user!;
+      console.log("✅ [AUTH] Data validated, user:", { userId: user.id, username: user.username });
+
+      // Check if custom alias is provided and user is premium
+      if (data.customAlias && !user.isPremium) {
+        console.log("❌ [AUTH] Custom alias requested but user not premium");
+        return res.status(403).json({ message: "Custom aliases require premium subscription" });
+      }
+
+      // Check if custom alias is already taken
+      if (data.customAlias) {
+        console.log("🔍 [AUTH] Checking custom alias:", data.customAlias);
+        const existing = await storage.getUrlByCustomAlias(data.customAlias);
+        if (existing) {
+          console.log("❌ [AUTH] Custom alias already taken");
+          return res.status(400).json({ message: "Custom alias already taken" });
+        }
+      }
+
+      // Generate unique short ID
+      let shortId: string;
+      let attempts = 0;
       do {
         shortId = generateShortId();
-      } while (await storage.getUrlByShortId(shortId));
+        attempts++;
+        console.log(`🔄 [AUTH] Generated shortId attempt ${attempts}:`, shortId);
+      } while (await storage.getUrlByShortId(shortId) && attempts < 10);
 
-      const url = await storage.createUrl({
+      if (attempts >= 10) {
+        console.log("❌ [AUTH] Failed to generate unique shortId after 10 attempts");
+        return res.status(500).json({ message: "Failed to generate unique short ID" });
+      }
+
+      console.log("✅ [AUTH] Final shortId:", shortId);
+
+      const urlData = {
         ...data,
         userId: user.id,
         shortId,
         title: data.title || extractTitle(data.longUrl),
         tags: data.tags || [],
-      });
+      };
+
+      console.log("📝 [AUTH] Creating URL with data:", urlData);
+
+      const url = await storage.createUrl(urlData);
+      console.log("✅ [AUTH] URL created successfully:", { id: url.id, shortId: url.shortId, customAlias: url.customAlias });
 
       res.status(201).json(url);
     } catch (error) {
+      console.error("❌ [AUTH] Error in shorten endpoint:", error);
       if (error instanceof z.ZodError) {
+        console.log("❌ [AUTH] Validation error:", error.errors);
         return res.status(400).json({ message: "Invalid input data" });
       }
       res.status(500).json({ message: "Failed to shorten URL" });
@@ -155,7 +223,7 @@ export function registerRoutes(app: Express): Server {
       const results = [];
       for (const urlData of urlList) {
         try {
-          const data = insertUrlSchema.parse(urlData);
+          const data = frontendUrlSchema.parse(urlData);
           
           // Generate unique short ID
           let shortId: string;
@@ -183,9 +251,79 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get user's URLs
+  // Bulk shorten URLs (anonymous users)
+  app.post("/api/shorten/bulk/public", async (req, res) => {
+    try {
+      const { urls: urlList } = req.body;
+      if (!Array.isArray(urlList) || urlList.length === 0) {
+        return res.status(400).json({ message: "Invalid URL list" });
+      }
+
+      if (urlList.length > 50) {
+        return res.status(400).json({ message: "Maximum 50 URLs per batch for anonymous users" });
+      }
+
+      const results = [];
+      for (const urlData of urlList) {
+        try {
+          const { longUrl, customAlias } = urlData;
+          
+          if (!longUrl) {
+            results.push({ error: "URL is required", originalUrl: urlData.longUrl });
+            continue;
+          }
+
+          // Validate URL format
+          try {
+            new URL(longUrl);
+          } catch {
+            results.push({ error: "Invalid URL format", originalUrl: longUrl });
+            continue;
+          }
+
+          // Check if custom alias is provided and available
+          if (customAlias) {
+            const existing = await storage.getUrlByCustomAlias(customAlias);
+            if (existing) {
+              results.push({ error: "Custom alias already taken", originalUrl: longUrl });
+              continue;
+            }
+          }
+
+          // Generate unique short ID
+          let shortId: string;
+          do {
+            shortId = customAlias || generateShortId();
+          } while (!customAlias && await storage.getUrlByShortId(shortId));
+
+          const url = await storage.createUrl({
+            longUrl,
+            shortId,
+            customAlias: customAlias || undefined,
+            title: extractTitle(longUrl),
+            tags: [],
+            userId: 0, // Anonymous URL
+          });
+
+          results.push(url);
+        } catch (error) {
+          results.push({ error: "Invalid URL data", originalUrl: urlData.longUrl });
+        }
+      }
+
+      res.json({ results });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process bulk URLs" });
+    }
+  });
+
+  // Get user's URLs (authenticated users)
   app.get("/api/urls", async (req, res) => {
+    console.log("📋 [URLS] Fetching URLs for user:", req.user?.id);
+    console.log("📋 [URLS] Query params:", req.query);
+    
     if (!req.isAuthenticated()) {
+      console.log("❌ [URLS] User not authenticated");
       return res.status(401).json({ message: "Authentication required" });
     }
 
@@ -194,10 +332,47 @@ export function registerRoutes(app: Express): Server {
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = (page - 1) * limit;
 
+      console.log("📋 [URLS] Fetching with params:", { page, limit, offset, userId: req.user!.id });
       const urls = await storage.getUserUrls(req.user!.id, limit, offset);
+      console.log("✅ [URLS] Found URLs:", urls.length);
       res.json(urls);
     } catch (error) {
+      console.error("❌ [URLS] Error fetching URLs:", error);
       res.status(500).json({ message: "Failed to fetch URLs" });
+    }
+  });
+
+  // Get URL by short ID (public endpoint)
+  app.get("/api/url/:shortId", async (req, res) => {
+    try {
+      const { shortId } = req.params;
+      
+      // Try to find by short ID first
+      let url = await storage.getUrlByShortId(shortId);
+      
+      // If not found, try custom alias
+      if (!url) {
+        url = await storage.getUrlByCustomAlias(shortId);
+      }
+
+      if (!url) {
+        return res.status(404).json({ message: "URL not found" });
+      }
+
+      // Return URL info (without sensitive data)
+      res.json({
+        id: url.id,
+        shortId: url.shortId,
+        customAlias: url.customAlias,
+        title: url.title,
+        longUrl: url.longUrl,
+        clickCount: url.clickCount,
+        createdAt: url.createdAt,
+        lastAccessedAt: url.lastAccessedAt,
+        isAnonymous: url.userId === 0 || url.userId === null
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch URL" });
     }
   });
 

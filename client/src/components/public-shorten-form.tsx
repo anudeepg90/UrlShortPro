@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, Copy, Check, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeCanvas } from 'qrcode.react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const shortenSchema = z.object({
   longUrl: z.string().url("Please enter a valid URL"),
@@ -26,6 +28,7 @@ export default function PublicShortenForm() {
   const [shortenedUrl, setShortenedUrl] = useState<ShortenedUrl | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const form = useForm<ShortenData>({
     resolver: zodResolver(shortenSchema),
@@ -70,6 +73,16 @@ export default function PublicShortenForm() {
 
   const getShortUrl = (url: ShortenedUrl) => {
     return `${window.location.origin}/${url.shortId}`;
+  };
+
+  const downloadQrCode = () => {
+    const canvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const image = canvas.toDataURL('image/jpeg', 1.0);
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = 'short-url-qr.jpg';
+    link.click();
   };
 
   const copyToClipboard = async () => {
@@ -148,9 +161,39 @@ export default function PublicShortenForm() {
                   <ExternalLink className="h-4 w-4" />
                   <span className="text-xs">Test</span>
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowQr(true)}
+                  className="flex items-center space-x-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z" /></svg>
+                  <span className="text-xs">QR</span>
+                </Button>
               </div>
             </div>
           </div>
+
+          <Dialog open={showQr} onOpenChange={setShowQr}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>QR Code for Short URL</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center space-y-4">
+                <QRCodeCanvas
+                  id="qr-code-canvas"
+                  value={getShortUrl(shortenedUrl)}
+                  size={2048}
+                  level="H"
+                  includeMargin={true}
+                  style={{ width: '100%', height: 'auto', maxWidth: '400px', background: 'white' }}
+                />
+                <Button onClick={downloadQrCode} className="w-full bg-primary text-white">
+                  Download as JPG (4K)
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <div className="flex justify-center mt-6">
             <Button onClick={handleNewUrl} variant="outline">

@@ -51,56 +51,6 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
     },
   });
 
-  // Show premium upgrade prompt for non-premium users
-  if (!user?.isPremium) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <span>Upgrade to Premium</span>
-              <Badge className="bg-accent text-white">PRO</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <List className="text-accent text-2xl" />
-            </div>
-            <h4 className="text-xl font-bold text-gray-900 mb-2">Unlock Bulk Features</h4>
-            <p className="text-gray-600 mb-6">
-              Bulk URL shortening is available for premium users only.
-            </p>
-            
-            <div className="space-y-3 mb-6 text-left">
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">Process up to 100 URLs at once</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">CSV file upload support</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">Custom aliases for all URLs</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex space-x-3 justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Maybe Later
-            </Button>
-            <Button className="bg-accent hover:bg-amber-600">
-              Upgrade Now
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   const handleSubmit = () => {
     const urlList = urls
       .split('\n')
@@ -135,7 +85,9 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <span>Bulk Shorten URLs</span>
-            <Badge className="bg-accent text-white">PREMIUM</Badge>
+            {user?.isPremium && (
+              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">PREMIUM</Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
         
@@ -199,7 +151,7 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
           <Button
             onClick={handleSubmit}
             disabled={bulkShortenMutation.isPending || (activeTab === "textarea" && !urls.trim())}
-            className="bg-accent hover:bg-amber-600 flex items-center space-x-2"
+            className="bg-primary hover:bg-primary/90 flex items-center space-x-2"
           >
             <List className="h-4 w-4" />
             <span>{bulkShortenMutation.isPending ? "Processing..." : "Process URLs"}</span>

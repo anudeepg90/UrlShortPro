@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
-import { X, TrendingUp, Users, MousePointer, BarChart3 } from "lucide-react";
+import { X, TrendingUp, Users, MousePointer, BarChart3, Crown } from "lucide-react";
 
 interface AnalyticsModalProps {
   isOpen: boolean;
@@ -13,67 +13,18 @@ interface AnalyticsModalProps {
 export default function AnalyticsModal({ isOpen, onClose, urlId }: AnalyticsModalProps) {
   const { user } = useAuth();
 
-  // Show premium upgrade prompt for non-premium users
-  if (!user?.isPremium) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <span>Upgrade to Premium</span>
-              <Badge className="bg-accent text-white">PRO</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BarChart3 className="text-accent text-2xl" />
-            </div>
-            <h4 className="text-xl font-bold text-gray-900 mb-2">Unlock Advanced Analytics</h4>
-            <p className="text-gray-600 mb-6">
-              Detailed analytics and insights are available for premium users only.
-            </p>
-            
-            <div className="space-y-3 mb-6 text-left">
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">Click-through rates and trends</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">Geographic and device analytics</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">Referrer tracking and insights</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-green-500">✓</span>
-                <span className="text-sm text-gray-700">Historical data and reports</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex space-x-3 justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Maybe Later
-            </Button>
-            <Button className="bg-accent hover:bg-amber-600">
-              Upgrade Now
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle>Link Analytics</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <span>Link Analytics</span>
+                {user?.isPremium && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">PREMIUM</Badge>
+                )}
+              </DialogTitle>
               <p className="text-sm text-gray-600 mt-1">
                 Detailed performance metrics for your shortened URL
               </p>
