@@ -27,6 +27,10 @@ export const supabaseHelpers = {
       password: data.password,
       email: data.email,
       isPremium: data.is_premium,
+      membershipStartDate: data.membership_start_date,
+      membershipEndDate: data.membership_end_date,
+      stripeCustomerId: data.stripe_customer_id,
+      stripeSubscriptionId: data.stripe_subscription_id,
       createdAt: data.created_at,
     };
     
@@ -50,6 +54,10 @@ export const supabaseHelpers = {
       password: data.password,
       email: data.email,
       isPremium: data.is_premium,
+      membershipStartDate: data.membership_start_date,
+      membershipEndDate: data.membership_end_date,
+      stripeCustomerId: data.stripe_customer_id,
+      stripeSubscriptionId: data.stripe_subscription_id,
       createdAt: data.created_at,
     };
   },
@@ -71,15 +79,27 @@ export const supabaseHelpers = {
       password: data.password,
       email: data.email,
       isPremium: data.is_premium,
+      membershipStartDate: data.membership_start_date,
+      membershipEndDate: data.membership_end_date,
+      stripeCustomerId: data.stripe_customer_id,
+      stripeSubscriptionId: data.stripe_subscription_id,
       createdAt: data.created_at,
     };
   },
 
   // Create user
   async createUser(userData: { username: string; password: string; email: string }) {
+    // All users are created as premium by default
+    const userDataWithPremium = {
+      ...userData,
+      is_premium: true,
+      membership_start_date: new Date().toISOString(),
+      // membership_end_date is NULL by default (no expiration)
+    };
+    
     const { data, error } = await supabase
       .from('users')
-      .insert(userData)
+      .insert(userDataWithPremium)
       .select()
       .single();
     
@@ -92,6 +112,10 @@ export const supabaseHelpers = {
       password: data.password,
       email: data.email,
       isPremium: data.is_premium,
+      membershipStartDate: data.membership_start_date,
+      membershipEndDate: data.membership_end_date,
+      stripeCustomerId: data.stripe_customer_id,
+      stripeSubscriptionId: data.stripe_subscription_id,
       createdAt: data.created_at,
     };
   },

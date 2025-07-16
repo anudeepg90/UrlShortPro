@@ -8,7 +8,11 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
-  isPremium: boolean("is_premium").notNull().default(false),
+  isPremium: boolean("is_premium").notNull().default(true), // All users are premium by default
+  membershipStartDate: timestamp("membership_start_date").notNull().defaultNow(),
+  membershipEndDate: timestamp("membership_end_date"), // NULL means no expiration
+  stripeCustomerId: text("stripe_customer_id"), // For future Stripe integration
+  stripeSubscriptionId: text("stripe_subscription_id"), // For future Stripe integration
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

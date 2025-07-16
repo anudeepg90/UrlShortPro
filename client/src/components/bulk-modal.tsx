@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { List, Upload, FileText } from "lucide-react";
+import { List, Upload, FileText, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BulkModalProps {
@@ -20,6 +20,7 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
   const { toast } = useToast();
   const [urls, setUrls] = useState("");
   const [activeTab, setActiveTab] = useState("textarea");
+  const [bulkResults, setBulkResults] = useState<any>(null);
 
   const bulkShortenMutation = useMutation({
     mutationFn: async (urlList: any[]) => {
@@ -30,17 +31,12 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/urls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       
-      const { results } = data;
-      const successCount = results.filter((r: any) => !r.error).length;
-      const errorCount = results.filter((r: any) => r.error).length;
+      setBulkResults(data);
       
       toast({
         title: "Bulk operation completed",
-        description: `${successCount} URLs shortened successfully${errorCount ? `, ${errorCount} failed` : ""}.`,
+        description: `${data.successCount} URLs shortened successfully${data.errorCount ? `, ${data.errorCount} failed` : ""}.`,
       });
-      
-      setUrls("");
-      onClose();
     },
     onError: (error: Error) => {
       toast({
@@ -50,6 +46,34 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
       });
     },
   });
+
+  const downloadCSV = () => {
+    if (!bulkResults?.csvData) return;
+    
+    const headers = ['url', 'alias', 'tags', 'shortLink'];
+    const csvContent = [
+      headers.join(','),
+      ...bulkResults.csvData.map((row: any) => 
+        headers.map(header => `"${row[header] || ''}"`).join(',')
+      )
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'bulk-shortened-urls.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClose = () => {
+    setUrls("");
+    setBulkResults(null);
+    onClose();
+  };
 
   const handleSubmit = () => {
     const urlList = urls
@@ -67,10 +91,10 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
       return;
     }
 
-    if (urlList.length > 100) {
+    if (urlList.length > 40) {
       toast({
         title: "Too many URLs",
-        description: "Maximum 100 URLs per batch.",
+        description: "Maximum 40 URLs per batch.",
         variant: "destructive",
       });
       return;
@@ -117,7 +141,7 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
                   disabled={bulkShortenMutation.isPending}
                 />
                 <p className="text-xs text-gray-500">
-                  Enter each URL on a new line. Up to 100 URLs per batch.
+                  Enter each URL on a new line. Up to 40 URLs per batch.
                 </p>
               </div>
             </TabsContent>
@@ -139,23 +163,86 @@ export default function BulkModal({ isOpen, onClose }: BulkModalProps) {
             <p className="text-xs text-blue-700">Example: <code>https://example.com,my-alias,marketing,social</code></p>
           </div>
         </div>
+
+        {/* Results Display */}
+        {bulkResults && (
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="text-sm font-medium text-green-900 mb-2">Bulk Operation Results</h4>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-green-700">
+                  <span className="font-medium">{bulkResults.successCount}</span> successful,{" "}
+                  <span className="font-medium">{bulkResults.errorCount}</span> failed
+                </div>
+                <Button
+                  onClick={downloadCSV}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white flex items-center space-x-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download CSV</span>
+                </Button>
+              </div>
+            </div>
+            
+            {bulkResults.results.length > 0 && (
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {bulkResults.results.map((result: any, index: number) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border ${
+                      result.error 
+                        ? 'bg-red-50 border-red-200' 
+                        : 'bg-green-50 border-green-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${
+                          result.error ? 'text-red-900' : 'text-green-900'
+                        }`}>
+                          {result.error ? 'Error' : 'Success'}
+                        </p>
+                        <p className="text-xs text-gray-600 break-all mt-1">
+                          {result.longUrl || result.originalUrl}
+                        </p>
+                        {!result.error && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Short: {window.location.origin}/{result.customAlias || result.shortId}
+                          </p>
+                        )}
+                        {result.error && (
+                          <p className="text-xs text-red-600 mt-1">
+                            {result.error}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="flex space-x-3 justify-end">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={bulkShortenMutation.isPending}
           >
-            Cancel
+            {bulkResults ? "Close" : "Cancel"}
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={bulkShortenMutation.isPending || (activeTab === "textarea" && !urls.trim())}
-            className="bg-primary hover:bg-primary/90 flex items-center space-x-2"
-          >
-            <List className="h-4 w-4" />
-            <span>{bulkShortenMutation.isPending ? "Processing..." : "Process URLs"}</span>
-          </Button>
+          {!bulkResults && (
+            <Button
+              onClick={handleSubmit}
+              disabled={bulkShortenMutation.isPending || (activeTab === "textarea" && !urls.trim())}
+              className="bg-primary hover:bg-primary/90 flex items-center space-x-2"
+            >
+              <List className="h-4 w-4" />
+              <span>{bulkShortenMutation.isPending ? "Processing..." : "Process URLs"}</span>
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

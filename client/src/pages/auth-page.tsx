@@ -109,14 +109,14 @@ export default function AuthPage() {
 
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-white/80 backdrop-blur-sm shadow-lg border border-gray-200/50">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
                 <Link className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold">LinkVault</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LinkVault</span>
             </div>
             <CardTitle>Reset Password</CardTitle>
             <CardDescription>
@@ -126,8 +126,8 @@ export default function AuthPage() {
           <CardContent>
             {forgotPasswordSent ? (
               <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <Shield className="h-8 w-8 text-green-600" />
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto">
+                  <Shield className="h-8 w-8 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-semibold">Check your email</h3>
                 <p className="text-gray-600">
@@ -168,7 +168,7 @@ export default function AuthPage() {
                   )}
                 </div>
                 
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200">
                   Send Reset Link
                 </Button>
                 
@@ -198,18 +198,18 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col">
       {/* Navigation Bar */}
-      <div className="p-4 border-b bg-white">
+      <div className="p-4 border-b bg-white/80 backdrop-blur-md">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
               <Link className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">LinkVault</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LinkVault</span>
           </div>
           <RouterLink href="/">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200">
               <Home className="h-4 w-4 mr-2" />
               Back to Home
             </Button>
@@ -220,13 +220,13 @@ export default function AuthPage() {
       <div className="flex-1 flex">
         {/* Left Column - Auth Forms */}
         <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md bg-white/80 backdrop-blur-sm shadow-lg border border-gray-200/50">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
                 <Link className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold">LinkVault</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LinkVault</span>
             </div>
             <CardTitle>Welcome to LinkVault</CardTitle>
             <CardDescription>
@@ -272,7 +272,7 @@ export default function AuthPage() {
                       type="button"
                       variant="link"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm p-0 h-auto"
+                      className="text-sm p-0 h-auto text-blue-600 hover:text-blue-700"
                     >
                       Forgot password?
                     </Button>
@@ -280,7 +280,7 @@ export default function AuthPage() {
                   
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
                     disabled={loginMutation.isPending}
                   >
                     {loginMutation.isPending ? "Signing in..." : "Sign In"}
@@ -343,7 +343,7 @@ export default function AuthPage() {
                   
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
                     disabled={registerMutation.isPending}
                   >
                     {registerMutation.isPending ? "Creating account..." : "Create Account"}
@@ -356,7 +356,7 @@ export default function AuthPage() {
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="flex space-x-2">
                 <RouterLink href="/" className="flex-1">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full hover:bg-blue-50 hover:border-blue-300 transition-all duration-200">
                     <Home className="h-4 w-4 mr-2" />
                     Continue as Guest
                   </Button>
@@ -376,9 +376,9 @@ export default function AuthPage() {
       </div>
 
       {/* Right Column - Hero Section */}
-      <div className="hidden lg:flex flex-1 bg-primary/5 items-center justify-center p-8">
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 items-center justify-center p-8">
         <div className="max-w-md text-center">
-          <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-6">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
             <Link className="h-8 w-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -390,22 +390,22 @@ export default function AuthPage() {
           
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-4 w-4 text-secondary" />
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                <BarChart3 className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm text-gray-700">Advanced Analytics & Tracking</span>
             </div>
             
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center">
-                <Zap className="h-4 w-4 text-accent" />
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                <Zap className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm text-gray-700">Custom Aliases & Bulk Operations</span>
             </div>
             
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Shield className="h-4 w-4 text-primary" />
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
+                <Shield className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm text-gray-700">Secure & Reliable Platform</span>
             </div>

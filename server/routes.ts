@@ -8,7 +8,7 @@ import { z } from "zod";
 function generateShortId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 6; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
@@ -75,9 +75,15 @@ export function registerRoutes(app: Express): Server {
 
       // Check if custom alias is provided and available
       if (customAlias) {
-        const existing = await storage.getUrlByCustomAlias(customAlias);
-        if (existing) {
+        // Check if custom alias is already taken by another URL's custom alias
+        const existingByCustomAlias = await storage.getUrlByCustomAlias(customAlias);
+        if (existingByCustomAlias) {
           return res.status(400).json({ message: "Custom alias already taken" });
+        }
+        // Check if custom alias is already being used as a shortId by another URL
+        const existingByShortId = await storage.getUrlByShortId(customAlias);
+        if (existingByShortId) {
+          return res.status(400).json({ message: "Custom alias conflicts with existing short link" });
         }
       }
 
@@ -121,16 +127,18 @@ export function registerRoutes(app: Express): Server {
       const data = frontendUrlSchema.parse(req.body);
       const user = req.user!;
 
-      // Check if custom alias is provided and user is premium
-      if (data.customAlias && !user.isPremium) {
-        return res.status(403).json({ message: "Custom aliases require premium subscription" });
-      }
-
-      // Check if custom alias is already taken
+      // All authenticated users are treated as premium
+      // Custom aliases are available to all signed-in users
       if (data.customAlias) {
-        const existing = await storage.getUrlByCustomAlias(data.customAlias);
-        if (existing) {
+        // Check if custom alias is already taken by another URL's custom alias
+        const existingByCustomAlias = await storage.getUrlByCustomAlias(data.customAlias);
+        if (existingByCustomAlias) {
           return res.status(400).json({ message: "Custom alias already taken" });
+        }
+        // Check if custom alias is already being used as a shortId by another URL
+        const existingByShortId = await storage.getUrlByShortId(data.customAlias);
+        if (existingByShortId) {
+          return res.status(400).json({ message: "Custom alias conflicts with existing short link" });
         }
       }
 
@@ -166,16 +174,14 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Bulk shorten URLs (premium only)
+  // Bulk shorten URLs (available to all authenticated users)
   app.post("/api/shorten/bulk", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Authentication required" });
     }
 
+    // All authenticated users can use bulk shortening
     const user = req.user!;
-    if (!user.isPremium) {
-      return res.status(403).json({ message: "Bulk shortening requires premium subscription" });
-    }
 
     try {
       const { urls: urlList } = req.body;
@@ -183,20 +189,42 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "Invalid URL list" });
       }
 
-      if (urlList.length > 100) {
-        return res.status(400).json({ message: "Maximum 100 URLs per batch" });
+      if (urlList.length > 40) {
+        return res.status(400).json({ message: "Maximum 40 URLs per batch" });
       }
 
-      const results = [];
+      const results: Array<any> = [];
       for (const urlData of urlList) {
         try {
           const data = frontendUrlSchema.parse(urlData);
+          // Check if custom alias is already taken
+          if (data.customAlias) {
+            // Check if custom alias is already taken by another URL's custom alias
+            const existingByCustomAlias = await storage.getUrlByCustomAlias(data.customAlias);
+            if (existingByCustomAlias) {
+              results.push({ error: "Custom alias already taken", originalUrl: data.longUrl });
+              continue;
+            }
+            // Check if custom alias is already being used as a shortId by another URL
+            const existingByShortId = await storage.getUrlByShortId(data.customAlias);
+            if (existingByShortId) {
+              results.push({ error: "Custom alias conflicts with existing short link", originalUrl: data.longUrl });
+              continue;
+            }
+          }
           
           // Generate unique short ID
           let shortId: string;
+          let attempts = 0;
           do {
             shortId = generateShortId();
-          } while (await storage.getUrlByShortId(shortId));
+            attempts++;
+          } while (await storage.getUrlByShortId(shortId) && attempts < 10);
+
+          if (attempts >= 10) {
+            results.push({ error: "Failed to generate unique short ID", originalUrl: data.longUrl });
+            continue;
+          }
 
           const url = await storage.createUrl({
             ...data,
@@ -212,7 +240,34 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
-      res.json({ results });
+      // Generate CSV data
+      const csvData = results.map(result => {
+        if (result.error) {
+          return {
+            url: result.originalUrl || '',
+            alias: '',
+            tags: '',
+            shortLink: '',
+            status: 'Error: ' + result.error
+          };
+        } else {
+          const shortLink = `${req.protocol}://${req.get('host')}/${result.customAlias || result.shortId}`;
+          return {
+            url: result.longUrl,
+            alias: result.customAlias || '',
+            tags: (result.tags || []).join(','),
+            shortLink: shortLink,
+            status: 'Success'
+          };
+        }
+      });
+
+      res.json({ 
+        results,
+        csvData,
+        successCount: results.filter(r => !r.error).length,
+        errorCount: results.filter(r => r.error).length
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to process bulk URLs" });
     }
@@ -351,26 +406,29 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Update URL (premium feature for custom alias)
+  // Update URL (available to all authenticated users)
   app.put("/api/url/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Authentication required" });
     }
 
+    // All authenticated users can edit URLs
     const user = req.user!;
-    if (!user.isPremium) {
-      return res.status(403).json({ message: "Editing URLs requires premium subscription" });
-    }
 
     try {
       const urlId = parseInt(req.params.id);
       const { customAlias, tags } = req.body;
-
       // Check if custom alias is already taken by another URL
       if (customAlias) {
-        const existing = await storage.getUrlByCustomAlias(customAlias);
-        if (existing && existing.id !== urlId) {
+        // Check if custom alias is already taken by another URL's custom alias
+        const existingByCustomAlias = await storage.getUrlByCustomAlias(customAlias);
+        if (existingByCustomAlias && existingByCustomAlias.id !== urlId) {
           return res.status(400).json({ message: "Custom alias already taken" });
+        }
+        // Check if custom alias is already being used as a shortId by another URL
+        const existingByShortId = await storage.getUrlByShortId(customAlias);
+        if (existingByShortId && existingByShortId.id !== urlId) {
+          return res.status(400).json({ message: "Custom alias conflicts with existing short link" });
         }
       }
 

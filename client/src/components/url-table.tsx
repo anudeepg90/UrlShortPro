@@ -146,12 +146,14 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   const filteredUrls = urls?.filter(url => 
     url.longUrl.toLowerCase().includes(searchQuery.toLowerCase()) ||
     url.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    url.customAlias?.toLowerCase().includes(searchQuery.toLowerCase())
+    url.customAlias?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    url.shortId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    url.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   ) || [];
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-8">
         <div className="animate-pulse space-y-6">
           <div className="h-10 bg-gray-200 rounded-lg w-1/3"></div>
           <div className="space-y-4">
@@ -167,7 +169,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   return (
     <div className="space-y-6">
       {/* Search Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
           <Input
@@ -181,12 +183,12 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
       </div>
 
       {/* URLs Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
           <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Globe className="h-5 w-5 text-blue-600" />
+            <Globe className="h-5 w-5 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" />
             Your Links
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               {filteredUrls.length}
             </Badge>
           </h3>
@@ -194,7 +196,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
         
         {filteredUrls.length === 0 ? (
           <div className="p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Globe className="h-8 w-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No URLs found</h3>
@@ -206,7 +208,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
           <div className="overflow-x-auto">
             <Table className="w-full">
               <TableHeader>
-                <TableRow className="border-b border-gray-100 bg-gray-50/30">
+                <TableRow className="border-b border-gray-100 bg-gradient-to-r from-blue-50/30 to-indigo-50/30">
                   <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[35%]">Original URL</TableHead>
                   <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[25%]">Short Link</TableHead>
                   <TableHead className="font-semibold text-gray-700 py-4 px-6 w-[15%] text-center">Clicks</TableHead>
@@ -216,11 +218,11 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
               </TableHeader>
               <TableBody>
                 {filteredUrls.map((url) => (
-                  <TableRow key={url.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100">
+                  <TableRow key={url.id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/30 transition-all duration-200 border-b border-gray-100">
                     <TableCell className="py-6 px-6 align-top">
                       <div className="flex items-start gap-4">
                         <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
                             <ExternalLink className="text-white h-5 w-5" />
                           </div>
                         </div>
@@ -238,12 +240,12 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                           {url.tags && url.tags.length > 0 && (
                             <div className="flex items-center gap-2 flex-wrap">
                               {url.tags.slice(0, 3).map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs px-2 py-1">
+                                <Badge key={tag} variant="secondary" className="text-xs px-2 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border border-blue-200">
                                   {tag}
                                 </Badge>
                               ))}
                               {url.tags.length > 3 && (
-                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                <Badge variant="outline" className="text-xs px-2 py-1 border-blue-200 text-blue-600">
                                   +{url.tags.length - 3} more
                                 </Badge>
                               )}
@@ -254,7 +256,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                     </TableCell>
                     <TableCell className="py-6 px-6 align-top">
                       <div className="flex items-start gap-3">
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex-1 min-w-0">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg px-3 py-2 flex-1 min-w-0">
                           <code className="text-sm font-mono text-blue-700 break-all block">
                             {url.customAlias || url.shortId}
                           </code>
@@ -272,8 +274,8 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                     </TableCell>
                     <TableCell className="py-6 px-6 align-top">
                       <div className="flex items-center justify-center gap-2">
-                        <div className="bg-gray-100 rounded-full px-3 py-1">
-                          <span className="text-sm font-semibold text-gray-900">
+                        <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full px-3 py-1 border border-blue-200">
+                          <span className="text-sm font-semibold text-blue-700">
                             {url.clickCount}
                           </span>
                         </div>
@@ -299,19 +301,19 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(url)}
-                          className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-600 transition-colors relative"
+                          className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors relative"
                           title="Edit URL"
                         >
                           <Edit className="h-4 w-4" />
                           {user?.isPremium && (
-                            <Crown className="h-3 w-3 text-amber-500 absolute -top-1 -right-1" />
+                            <Crown className="h-3 w-3 text-blue-600 absolute -top-1 -right-1" />
                           )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleShowQr(url)}
-                          className="h-8 w-8 p-0 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                          className="h-8 w-8 p-0 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
                           title="Show QR Code"
                         >
                           <QrCode className="h-4 w-4" />

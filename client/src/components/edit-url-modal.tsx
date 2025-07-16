@@ -20,7 +20,11 @@ import { Edit, X, Crown, ExternalLink, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const editUrlSchema = z.object({
-  customAlias: z.string().optional(),
+  customAlias: z.string().optional().refine((val) => {
+    if (!val) return true; // Allow empty
+    // Only allow alphanumeric and hyphens, 3-20 characters
+    return /^[a-zA-Z0-9-]{3,20}$/.test(val);
+  }, "Custom alias must be 3-20 characters, alphanumeric and hyphens only"),
   tags: z.string().optional(),
 });
 
@@ -107,6 +111,22 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
       e.preventDefault();
       addTag();
     }
+  };
+
+  const validateCustomAlias = async (alias: string) => {
+    if (!alias || alias === url?.customAlias) return null;
+    
+    try {
+      const response = await fetch(`/api/url/${alias}`, {
+        method: 'HEAD'
+      });
+      if (response.ok) {
+        return "This custom alias is already taken";
+      }
+    } catch (error) {
+      // If error, alias is available
+    }
+    return null;
   };
 
   if (!url) return null;
