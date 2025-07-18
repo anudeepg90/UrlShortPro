@@ -9,6 +9,7 @@ import { Link, Copy, Check, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { config } from "@/lib/config";
 
 const shortenSchema = z.object({
   longUrl: z.string().url("Please enter a valid URL"),
@@ -40,7 +41,7 @@ export default function PublicShortenForm() {
   const onSubmit = async (data: ShortenData) => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/shorten/public", {
+      const response = await fetch(`${config.apiBaseUrl}/api/shorten/public`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,7 +50,8 @@ export default function PublicShortenForm() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to shorten URL");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to shorten URL");
       }
 
       const result = await response.json();
@@ -61,9 +63,10 @@ export default function PublicShortenForm() {
         description: "Your shortened URL is ready to share.",
       });
     } catch (error) {
+      console.error("Shorten error:", error);
       toast({
         title: "Failed to shorten URL",
-        description: "Please try again or check if the URL is valid.",
+        description: error instanceof Error ? error.message : "Please try again or check if the URL is valid.",
         variant: "destructive",
       });
     } finally {
@@ -72,7 +75,7 @@ export default function PublicShortenForm() {
   };
 
   const getShortUrl = (url: ShortenedUrl) => {
-    return `${window.location.origin}/${url.shortId}`;
+    return `${config.apiBaseUrl}/${url.shortId}`;
   };
 
   const downloadQrCode = () => {

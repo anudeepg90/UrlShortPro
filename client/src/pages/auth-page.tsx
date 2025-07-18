@@ -30,7 +30,7 @@ type RegisterData = z.infer<typeof registerSchema>;
 type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, login, register, isLoginLoading, isRegisterLoading, loginError, registerError } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -67,12 +67,12 @@ export default function AuthPage() {
   }
 
   const onLogin = (data: LoginData) => {
-    loginMutation.mutate(data);
+    login(data);
   };
 
   const onRegister = (data: RegisterData) => {
     const { confirmPassword, ...userData } = data;
-    registerMutation.mutate(userData);
+    register(userData);
   };
 
   const onForgotPassword = async (data: ForgotPasswordData) => {
@@ -241,13 +241,18 @@ export default function AuthPage() {
               </TabsList>
               
               <TabsContent value="login" className="space-y-4">
+                {loginError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">{loginError.message}</p>
+                  </div>
+                )}
                 <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
                     <Input
                       id="username"
                       {...loginForm.register("username")}
-                      disabled={loginMutation.isPending}
+                      disabled={isLoginLoading}
                     />
                     {loginForm.formState.errors.username && (
                       <p className="text-sm text-red-600">{loginForm.formState.errors.username.message}</p>
@@ -260,7 +265,7 @@ export default function AuthPage() {
                       id="password"
                       type="password"
                       {...loginForm.register("password")}
-                      disabled={loginMutation.isPending}
+                      disabled={isLoginLoading}
                     />
                     {loginForm.formState.errors.password && (
                       <p className="text-sm text-red-600">{loginForm.formState.errors.password.message}</p>
@@ -281,21 +286,26 @@ export default function AuthPage() {
                   <Button
                     type="submit"
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
-                    disabled={loginMutation.isPending}
+                    disabled={isLoginLoading}
                   >
-                    {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                    {isLoginLoading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </TabsContent>
               
               <TabsContent value="register" className="space-y-4">
+                {registerError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">{registerError.message}</p>
+                  </div>
+                )}
                 <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="reg-username">Username</Label>
                     <Input
                       id="reg-username"
                       {...registerForm.register("username")}
-                      disabled={registerMutation.isPending}
+                      disabled={isRegisterLoading}
                     />
                     {registerForm.formState.errors.username && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.username.message}</p>
@@ -308,7 +318,7 @@ export default function AuthPage() {
                       id="email"
                       type="email"
                       {...registerForm.register("email")}
-                      disabled={registerMutation.isPending}
+                      disabled={isRegisterLoading}
                     />
                     {registerForm.formState.errors.email && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.email.message}</p>
@@ -321,7 +331,7 @@ export default function AuthPage() {
                       id="reg-password"
                       type="password"
                       {...registerForm.register("password")}
-                      disabled={registerMutation.isPending}
+                      disabled={isRegisterLoading}
                     />
                     {registerForm.formState.errors.password && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.password.message}</p>
@@ -334,7 +344,7 @@ export default function AuthPage() {
                       id="confirmPassword"
                       type="password"
                       {...registerForm.register("confirmPassword")}
-                      disabled={registerMutation.isPending}
+                      disabled={isRegisterLoading}
                     />
                     {registerForm.formState.errors.confirmPassword && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.confirmPassword.message}</p>
@@ -344,9 +354,9 @@ export default function AuthPage() {
                   <Button
                     type="submit"
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
-                    disabled={registerMutation.isPending}
+                    disabled={isRegisterLoading}
                   >
-                    {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                    {isRegisterLoading ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
               </TabsContent>

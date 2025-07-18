@@ -35,7 +35,7 @@ export const adSenseConfig: AdSenseConfig = {
     sidebar2: "1234567894",
     footerBanner: "1234567895",
   },
-  enabled: true, // Set to false to disable ads during development
+  enabled: false, // Set to false to disable ads during development
   lazyLoading: true, // Enable lazy loading for better performance
   performanceTracking: true, // Track ad performance metrics
   abTesting: false, // Enable A/B testing for ad placements

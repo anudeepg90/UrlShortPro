@@ -3,9 +3,31 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+const PORT = process.env.PORT || 5173;
 
+// Body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// CORS configuration
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.header('Access-Control-Allow-Origin', 'https://linkvault-181c7.web.app');
+  } else {
+    res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -66,5 +88,11 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
   }, () => {
     log(`serving on port ${port}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    if (process.env.NODE_ENV === 'production') {
+      const cloudRunUrl = process.env.CLOUD_RUN_URL || 'https://linkvault-api-m7jbmtvdha-uc.a.run.app';
+      console.log(`🔗 API URL: ${cloudRunUrl}/api`);
+      console.log(`🌐 Frontend URL: https://linkvault-181c7.web.app`);
+    }
   });
 })();

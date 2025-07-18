@@ -1,50 +1,28 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  Copy, 
-  Edit, 
-  Trash2, 
-  BarChart3, 
-  Globe,
-  Search,
-  Crown,
-  ExternalLink,
-  QrCode
-} from "lucide-react";
-import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Edit, Trash2, ExternalLink, Copy, Check, BarChart3, QrCode, Search, Globe, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import EditUrlModal from "@/components/edit-url-modal";
 import { QRCodeCanvas } from 'qrcode.react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { config } from "@/lib/config";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import EditUrlModal from "@/components/edit-url-modal";
 
 interface Url {
   id: number;
-  longUrl: string;
   shortId: string;
+  longUrl: string;
   customAlias?: string;
   title?: string;
   tags?: string[];
   clickCount: number;
   createdAt: string;
-  lastAccessedAt?: string;
 }
 
 interface UrlTableProps {
@@ -54,24 +32,25 @@ interface UrlTableProps {
 export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingUrl, setEditingUrl] = useState<Url | null>(null);
+  const [showQr, setShowQr] = useState(false);
   const [selectedUrl, setSelectedUrl] = useState<Url | null>(null);
-  const [showQrModal, setShowQrModal] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string>("");
 
-  const { data: urls, isLoading } = useQuery<Url[]>({
-    queryKey: ["/api/urls"],
+  const { data: urls = [], isLoading, error } = useQuery({
+    queryKey: ["urls", page, searchTerm],
     queryFn: async () => {
-      const response = await fetch(`/api/urls?page=${page}&limit=10`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/urls?page=${page}&limit=10&search=${searchTerm}`, {
         credentials: "include",
       });
       if (!response.ok) {
         throw new Error("Failed to fetch URLs");
       }
-      const data = await response.json();
-      return data;
+      return response.json();
     },
   });
 
@@ -80,57 +59,57 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
       await apiRequest("DELETE", `/api/url/${urlId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/urls"] });
+      queryClient.invalidateQueries({ queryKey: ["urls"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       toast({
         title: "URL deleted",
-        description: "The URL has been successfully deleted.",
+        description: "The URL has been permanently deleted.",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: "Delete failed",
-        description: error.message,
+        title: "Failed to delete URL",
+        description: "Please try again.",
         variant: "destructive",
       });
     },
   });
 
+  const getShortUrl = (url: Url) => {
+    return `${config.apiBaseUrl}/${url.shortId}`;
+  };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(text);
       toast({
         title: "Copied to clipboard",
-        description: "Short URL has been copied to your clipboard.",
+        description: "The URL has been copied to your clipboard.",
       });
+      setTimeout(() => setCopied(null), 2000);
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: "Failed to copy URL to clipboard.",
+        description: "Please copy the URL manually.",
         variant: "destructive",
       });
     }
   };
 
-  const getShortUrl = (url: Url) => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/${url.customAlias || url.shortId}`;
-  };
-
-  const handleDelete = (urlId: number) => {
+  const handleDelete = (url: Url) => {
     if (confirm("Are you sure you want to delete this URL? This action cannot be undone.")) {
-      deleteUrlMutation.mutate(urlId);
+      deleteUrlMutation.mutate(url.id);
     }
   };
 
   const handleEdit = (url: Url) => {
-    setSelectedUrl(url);
-    setShowEditModal(true);
+    setEditingUrl(url);
   };
 
   const handleShowQr = (url: Url) => {
     setQrUrl(getShortUrl(url));
-    setShowQrModal(true);
+    setShowQr(true);
   };
 
   const downloadQrCode = () => {
@@ -143,12 +122,12 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
     link.click();
   };
 
-  const filteredUrls = urls?.filter(url => 
-    url.longUrl.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    url.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    url.customAlias?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    url.shortId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    url.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredUrls = urls?.filter((url: any) => 
+    url.longUrl.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    url.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    url.customAlias?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    url.shortId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    url.tags?.some((tag: any) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   ) || [];
 
   if (isLoading) {
@@ -175,8 +154,8 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
           <Input
             type="text"
             placeholder="Search URLs, aliases, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-12 h-12 text-base border-gray-200 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -201,7 +180,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No URLs found</h3>
             <p className="text-gray-600 max-w-sm mx-auto">
-              {searchQuery ? "No URLs match your search criteria." : "Create your first shortened URL to get started."}
+              {searchTerm ? "No URLs match your search criteria." : "Create your first shortened URL to get started."}
             </p>
           </div>
         ) : (
@@ -292,7 +271,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                     </TableCell>
                     <TableCell className="py-6 px-6 align-top">
                       <div className="text-sm text-gray-600">
-                        {format(new Date(url.createdAt), "MMM dd, yyyy")}
+                        {new Date(url.createdAt).toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell className="py-6 px-6 align-top">
@@ -321,7 +300,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(url.id)}
+                          onClick={() => handleDelete(url)}
                           className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
                           title="Delete URL"
                           disabled={deleteUrlMutation.isPending}
@@ -338,14 +317,17 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
         )}
       </div>
 
-      <EditUrlModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        url={selectedUrl}
-      />
+      {/* Edit URL Modal */}
+      {editingUrl && (
+        <EditUrlModal
+          isOpen={!!editingUrl}
+          onClose={() => setEditingUrl(null)}
+          url={editingUrl}
+        />
+      )}
 
       {/* QR Code Modal */}
-      <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
+      <Dialog open={showQr} onOpenChange={setShowQr}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>QR Code for Short URL</DialogTitle>
@@ -369,7 +351,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowQrModal(false)}
+                onClick={() => setShowQr(false)}
               >
                 Close
               </Button>

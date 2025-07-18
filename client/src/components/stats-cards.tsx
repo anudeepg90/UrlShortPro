@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, MousePointer, TrendingUp, Percent } from "lucide-react";
+import { config } from "@/lib/config";
 
 interface Stats {
   totalLinks: number;
@@ -10,6 +11,13 @@ interface Stats {
 export default function StatsCards() {
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["/api/stats"],
+    queryFn: async () => {
+      const response = await fetch(`${config.apiBaseUrl}/api/stats`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
   });
 
   if (isLoading) {

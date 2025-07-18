@@ -2,89 +2,108 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Edit, X, Crown, ExternalLink, Globe } from "lucide-react";
+import { X, Plus, Edit, Crown, Globe, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { config } from "@/lib/config";
+import { useAuth } from "@/hooks/use-auth";
 
 const editUrlSchema = z.object({
-  customAlias: z.string().optional().refine((val) => {
-    if (!val) return true; // Allow empty
-    // Only allow alphanumeric and hyphens, 3-20 characters
-    return /^[a-zA-Z0-9-]{3,20}$/.test(val);
-  }, "Custom alias must be 3-20 characters, alphanumeric and hyphens only"),
-  tags: z.string().optional(),
+  longUrl: z.string().url("Please enter a valid URL"),
+  customAlias: z.string().optional(),
+  title: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 type EditUrlData = z.infer<typeof editUrlSchema>;
 
+interface Url {
+  id: number;
+  shortId: string;
+  longUrl: string;
+  customAlias?: string;
+  title?: string;
+  tags?: string[];
+  clickCount: number;
+  createdAt: string;
+}
+
 interface EditUrlModalProps {
   isOpen: boolean;
   onClose: () => void;
-  url: {
-    id: number;
-    longUrl: string;
-    shortId: string;
-    customAlias?: string;
-    title?: string;
-    tags?: string[];
-  } | null;
+  url: Url | null;
 }
 
 export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [tags, setTags] = useState<string[]>([]);
+  const queryClient = useQueryClient();
   const [newTag, setNewTag] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [isCheckingAlias, setIsCheckingAlias] = useState(false);
+  const [aliasAvailable, setAliasAvailable] = useState<boolean | null>(null);
 
   const form = useForm<EditUrlData>({
     resolver: zodResolver(editUrlSchema),
     defaultValues: {
+      longUrl: "",
       customAlias: "",
-      tags: "",
+      title: "",
+      tags: [],
     },
   });
 
   useEffect(() => {
     if (url) {
-      form.setValue("customAlias", url.customAlias || "");
-      setTags(url.tags || []);
+      const urlTags: string[] = url.tags || [];
+      setTags(urlTags);
+      form.reset({
+        longUrl: url.longUrl,
+        customAlias: url.customAlias || "",
+        title: url.title || "",
+        tags: urlTags,
+      });
     }
   }, [url, form]);
 
-  const editUrlMutation = useMutation({
+  const updateUrlMutation = useMutation({
     mutationFn: async (data: EditUrlData) => {
-      if (!url) throw new Error("No URL selected");
-      
-      const res = await apiRequest("PUT", `/api/url/${url.id}`, {
-        customAlias: data.customAlias || null,
-        tags: tags,
+      const response = await fetch(`${config.apiBaseUrl}/api/url/${url?.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ...data,
+          tags: tags, // Use the local tags state
+        }),
       });
-      return await res.json();
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update URL");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/urls"] });
       toast({
-        title: "URL updated",
-        description: "Your URL has been successfully updated.",
+        title: "URL updated successfully!",
+        description: "Your URL has been updated.",
       });
+      queryClient.invalidateQueries({ queryKey: ["urls"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       onClose();
     },
     onError: (error: Error) => {
       toast({
-        title: "Update failed",
+        title: "Failed to update URL",
         description: error.message,
         variant: "destructive",
       });
@@ -92,7 +111,10 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
   });
 
   const onSubmit = (data: EditUrlData) => {
-    editUrlMutation.mutate(data);
+    updateUrlMutation.mutate({
+      ...data,
+      tags: tags, // Use the local tags state
+    });
   };
 
   const addTag = () => {
@@ -117,7 +139,7 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
     if (!alias || alias === url?.customAlias) return null;
     
     try {
-      const response = await fetch(`/api/url/${alias}`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/url/${alias}`, {
         method: 'HEAD'
       });
       if (response.ok) {
@@ -167,7 +189,7 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
               <div className="flex items-start gap-3">
                 <ExternalLink className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                 <p className="text-sm font-mono text-blue-800 break-all flex-1">
-                  {window.location.origin}/{url.customAlias || url.shortId}
+                  {config.apiBaseUrl}/{url.customAlias || url.shortId}
                 </p>
               </div>
             </div>
@@ -183,12 +205,12 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
             </Label>
             <div className="flex flex-col sm:flex-row gap-0">
               <div className="flex items-center px-4 py-3 bg-gray-100 border border-gray-300 rounded-l-xl text-sm text-gray-600 font-mono flex-shrink-0">
-                {window.location.origin}/
+                {config.apiBaseUrl}/
               </div>
               <Input
                 id="customAlias"
                 {...form.register("customAlias")}
-                disabled={editUrlMutation.isPending}
+                disabled={updateUrlMutation.isPending ?? false}
                 placeholder="my-custom-link"
                 className="rounded-l-none sm:rounded-l-none border-l-0 focus:border-blue-500 focus:ring-blue-500 flex-1"
               />
@@ -256,10 +278,10 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
             </Button>
             <Button
               type="submit"
-              disabled={editUrlMutation.isPending}
+              disabled={updateUrlMutation.isPending ?? false}
               className="px-6 w-full sm:w-auto"
             >
-              {editUrlMutation.isPending ? "Updating..." : "Update URL"}
+              {updateUrlMutation.isPending ?? false ? "Updating..." : "Update URL"}
             </Button>
           </DialogFooter>
         </form>

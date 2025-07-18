@@ -2,11 +2,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { Link, LogOut, Crown } from "lucide-react";
 
 export default function DashboardHeader() {
-  const { user, logoutMutation } = useAuth();
+  const { user, logout, isLogoutLoading } = useAuth();
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
+  const handleLogout = () => logout();
 
   return (
     <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 sticky top-0 z-50">
@@ -35,7 +33,7 @@ export default function DashboardHeader() {
             <button 
               onClick={handleLogout}
               className="text-gray-600 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50"
-              disabled={logoutMutation.isPending}
+              disabled={isLogoutLoading}
             >
               <LogOut className="h-5 w-5" />
             </button>

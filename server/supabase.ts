@@ -89,35 +89,49 @@ export const supabaseHelpers = {
 
   // Create user
   async createUser(userData: { username: string; password: string; email: string }) {
-    // All users are created as premium by default
-    const userDataWithPremium = {
-      ...userData,
-      is_premium: true,
-      membership_start_date: new Date().toISOString(),
-      // membership_end_date is NULL by default (no expiration)
-    };
-    
-    const { data, error } = await supabase
-      .from('users')
-      .insert(userDataWithPremium)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    // Transform snake_case to camelCase for frontend compatibility
-    return {
-      id: data.id,
-      username: data.username,
-      password: data.password,
-      email: data.email,
-      isPremium: data.is_premium,
-      membershipStartDate: data.membership_start_date,
-      membershipEndDate: data.membership_end_date,
-      stripeCustomerId: data.stripe_customer_id,
-      stripeSubscriptionId: data.stripe_subscription_id,
-      createdAt: data.created_at,
-    };
+    try {
+      console.log("🔧 [SUPABASE] Creating user with data:", { username: userData.username, email: userData.email });
+      
+      // All users are created as premium by default
+      const userDataWithPremium = {
+        ...userData,
+        is_premium: true,
+        membership_start_date: new Date().toISOString(),
+        // membership_end_date is NULL by default (no expiration)
+      };
+      
+      console.log("🔧 [SUPABASE] User data with premium:", userDataWithPremium);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .insert(userDataWithPremium)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("❌ [SUPABASE] Error creating user:", error);
+        throw error;
+      }
+      
+      console.log("✅ [SUPABASE] User created successfully:", data);
+      
+      // Transform snake_case to camelCase for frontend compatibility
+      return {
+        id: data.id,
+        username: data.username,
+        password: data.password,
+        email: data.email,
+        isPremium: data.is_premium,
+        membershipStartDate: data.membership_start_date,
+        membershipEndDate: data.membership_end_date,
+        stripeCustomerId: data.stripe_customer_id,
+        stripeSubscriptionId: data.stripe_subscription_id,
+        createdAt: data.created_at,
+      };
+    } catch (error) {
+      console.error("❌ [SUPABASE] createUser error:", error);
+      throw error;
+    }
   },
 
   // Get URLs by user ID

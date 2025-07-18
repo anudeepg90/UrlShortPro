@@ -1,9 +1,86 @@
 import { users, urls, urlClicks, type User, type InsertUser, type Url, type InsertUrl, type InsertUrlClick } from "@shared/schema";
 import { supabaseHelpers } from "./supabase";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import { supabase } from "./supabase";
 
-const MemorySessionStore = MemoryStore(session);
+// Custom Supabase Session Store
+class SupabaseSessionStore extends session.Store {
+  async get(sid: string, callback: (err: any, session?: any) => void) {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('session_data')
+        .eq('session_id', sid)
+        .single();
+      
+      if (error || !data) {
+        return callback(null, null);
+      }
+      
+      const sessionData = JSON.parse(data.session_data);
+      
+      // Check if session is expired
+      if (sessionData.cookie && sessionData.cookie.expires) {
+        if (new Date() > new Date(sessionData.cookie.expires)) {
+          await this.destroy(sid);
+          return callback(null, null);
+        }
+      }
+      
+      callback(null, sessionData);
+    } catch (err) {
+      callback(err);
+    }
+  }
+
+  async set(sid: string, session: any, callback?: (err?: any) => void) {
+    try {
+      const sessionData = JSON.stringify(session);
+      const expires = session.cookie?.expires || new Date(Date.now() + 24600000); // 24 hours in milliseconds
+      const { error } = await supabase
+        .from('sessions')
+        .upsert({
+          session_id: sid,
+          session_data: sessionData,
+          expires: expires.toISOString()
+        });
+      
+      if (error) throw error;
+      callback?.();
+    } catch (err) {
+      callback?.(err);
+    }
+  }
+
+  async destroy(sid: string, callback?: (err?: any) => void) {
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('session_id', sid);
+      
+      if (error) throw error;
+      callback?.();
+    } catch (err) {
+      callback?.(err);
+    }
+  }
+
+  async touch(sid: string, session: any, callback?: (err?: any) => void) {
+    try {
+      const expires = session.cookie?.expires || new Date(Date.now() + 24600000); // 24 hours in milliseconds
+      const { error } = await supabase
+        .from('sessions')
+        .update({ expires: expires.toISOString() })
+        .eq('session_id', sid);
+      
+      if (error) throw error;
+      callback?.();
+    } catch (err) {
+      callback?.(err);
+    }
+  }
+}
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -33,9 +110,7 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
 
   constructor() {
-    this.sessionStore = new MemorySessionStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
-    });
+    this.sessionStore = new SupabaseSessionStore();
   }
 
   async getUser(id: number): Promise<User | undefined> {
