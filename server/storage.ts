@@ -103,6 +103,32 @@ export interface IStorage {
     monthlyClicks: number;
   }>;
   
+  getUrlAnalytics(urlId: number, userId: number): Promise<{
+    url: Url;
+    totalClicks: number;
+    uniqueVisitors: number;
+    clickThroughRate: number;
+    recentClicks: Array<{
+      id: number;
+      ip: string;
+      userAgent: string;
+      referrer: string;
+      createdAt: string;
+    }>;
+    clicksByDay: Array<{
+      date: string;
+      clicks: number;
+    }>;
+    topReferrers: Array<{
+      referrer: string;
+      clicks: number;
+    }>;
+    deviceBreakdown: Array<{
+      device: string;
+      clicks: number;
+    }>;
+  } | null>;
+  
   sessionStore: session.Store;
 }
 
@@ -201,6 +227,34 @@ export class DatabaseStorage implements IStorage {
     monthlyClicks: number;
   }> {
     return await supabaseHelpers.getUserStats(userId);
+  }
+
+  async getUrlAnalytics(urlId: number, userId: number): Promise<{
+    url: Url;
+    totalClicks: number;
+    uniqueVisitors: number;
+    clickThroughRate: number;
+    recentClicks: Array<{
+      id: number;
+      ip: string;
+      userAgent: string;
+      referrer: string;
+      createdAt: string;
+    }>;
+    clicksByDay: Array<{
+      date: string;
+      clicks: number;
+    }>;
+    topReferrers: Array<{
+      referrer: string;
+      clicks: number;
+    }>;
+    deviceBreakdown: Array<{
+      device: string;
+      clicks: number;
+    }>;
+  } | null> {
+    return await supabaseHelpers.getUrlAnalytics(urlId, userId);
   }
 }
 

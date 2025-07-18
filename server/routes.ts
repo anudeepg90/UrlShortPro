@@ -406,6 +406,27 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get URL analytics (authenticated users)
+  app.get("/api/url/:id/analytics", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    try {
+      const urlId = parseInt(req.params.id);
+      const analytics = await storage.getUrlAnalytics(urlId, req.user!.id);
+      
+      if (!analytics) {
+        return res.status(404).json({ message: "URL not found or access denied" });
+      }
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching URL analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
   // Update URL (available to all authenticated users)
   app.put("/api/url/:id", async (req, res) => {
     if (!req.isAuthenticated()) {

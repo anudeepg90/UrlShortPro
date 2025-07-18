@@ -8,23 +8,23 @@ interface Config {
 }
 
 const getConfig = (): Config => {
-  const environment = process.env.NODE_ENV || 'development';
+  const environment = import.meta.env.MODE || 'development';
   
   if (environment === 'production') {
     return {
-      apiBaseUrl: process.env.VITE_API_URL || 'https://linkvault-api-m7jbmtvdha-uc.a.run.app',
+      apiBaseUrl: import.meta.env.VITE_API_URL || 'https://urlshortpro-backend-222258163708.us-central1.run.app',
       environment: 'production',
-      supabaseUrl: process.env.VITE_SUPABASE_URL || '',
-      supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || '',
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
+      supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
     };
   }
   
   // Development environment
   return {
-    apiBaseUrl: process.env.VITE_API_URL || '',
+    apiBaseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5173',
     environment: 'development',
-    supabaseUrl: process.env.VITE_SUPABASE_URL || '',
-    supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || '',
+    supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
+    supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
   };
 };
 

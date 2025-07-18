@@ -334,22 +334,177 @@ export const supabaseHelpers = {
 
   // Get user stats
   async getUserStats(userId: number) {
-    const { data, error } = await supabase
-      .from('urls')
-      .select('click_count, last_accessed_at')
-      .eq('user_id', userId);
-    
-    if (error) throw error;
-    
-    const totalLinks = data.length;
-    const totalClicks = data.reduce((sum, url) => sum + (url.click_count || 0), 0);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const monthlyClicks = data
-      .filter(url => url.last_accessed_at && new Date(url.last_accessed_at) >= thirtyDaysAgo)
-      .reduce((sum, url) => sum + (url.click_count || 0), 0);
-    
-    return { totalLinks, totalClicks, monthlyClicks };
-  }
+    try {
+      // Get total links
+      const { count: totalLinks } = await supabase
+        .from('urls')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      // Get total clicks
+      const { data: urls } = await supabase
+        .from('urls')
+        .select('click_count')
+        .eq('user_id', userId);
+
+      const totalClicks = urls?.reduce((sum, url) => sum + (url.click_count || 0), 0) || 0;
+
+      // Get monthly clicks (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: monthlyClicksData } = await supabase
+        .from('url_clicks')
+        .select('*')
+        .eq('url_id', userId)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      const monthlyClicks = monthlyClicksData?.length || 0;
+
+      return {
+        totalLinks: totalLinks || 0,
+        totalClicks,
+        monthlyClicks,
+      };
+    } catch (error) {
+      console.error("Error getting user stats:", error);
+      return {
+        totalLinks: 0,
+        totalClicks: 0,
+        monthlyClicks: 0,
+      };
+    }
+  },
+
+  async getUrlAnalytics(urlId: number, userId: number) {
+    try {
+      // First, verify the URL belongs to the user
+      const { data: urlData, error: urlError } = await supabase
+        .from('urls')
+        .select('*')
+        .eq('id', urlId)
+        .eq('user_id', userId)
+        .single();
+
+      if (urlError || !urlData) {
+        return null;
+      }
+
+      // Transform URL data
+      const url = {
+        id: urlData.id,
+        userId: urlData.user_id,
+        longUrl: urlData.long_url,
+        shortId: urlData.short_id,
+        customAlias: urlData.custom_alias,
+        title: urlData.title,
+        tags: urlData.tags,
+        clickCount: urlData.click_count,
+        createdAt: urlData.created_at,
+        lastAccessedAt: urlData.last_accessed_at,
+      };
+
+      // Get recent clicks
+      const { data: recentClicksData } = await supabase
+        .from('url_clicks')
+        .select('*')
+        .eq('url_id', urlId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const recentClicks = (recentClicksData || []).map(click => ({
+        id: click.id,
+        ip: click.ip || 'Unknown',
+        userAgent: click.user_agent || 'Unknown',
+        referrer: click.referrer || 'Direct',
+        createdAt: click.created_at,
+      }));
+
+      // Get clicks by day (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: clicksByDayData } = await supabase
+        .from('url_clicks')
+        .select('created_at')
+        .eq('url_id', urlId)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // Group clicks by day
+      const clicksByDayMap = new Map<string, number>();
+      (clicksByDayData || []).forEach(click => {
+        const date = new Date(click.created_at).toISOString().split('T')[0];
+        clicksByDayMap.set(date, (clicksByDayMap.get(date) || 0) + 1);
+      });
+
+      const clicksByDay = Array.from(clicksByDayMap.entries()).map(([date, clicks]) => ({
+        date,
+        clicks,
+      })).sort((a, b) => a.date.localeCompare(b.date));
+
+      // Get top referrers
+      const { data: referrersData } = await supabase
+        .from('url_clicks')
+        .select('referrer')
+        .eq('url_id', urlId)
+        .not('referrer', 'is', null);
+
+      const referrerCounts = new Map<string, number>();
+      (referrersData || []).forEach(click => {
+        const referrer = click.referrer || 'Direct';
+        referrerCounts.set(referrer, (referrerCounts.get(referrer) || 0) + 1);
+      });
+
+      const topReferrers = Array.from(referrerCounts.entries())
+        .map(([referrer, clicks]) => ({ referrer, clicks }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 5);
+
+      // Get device breakdown
+      const { data: devicesData } = await supabase
+        .from('url_clicks')
+        .select('user_agent')
+        .eq('url_id', urlId)
+        .not('user_agent', 'is', null);
+
+      const deviceCounts = new Map<string, number>();
+      (devicesData || []).forEach(click => {
+        const userAgent = click.user_agent || 'Unknown';
+        let device = 'Unknown';
+        
+        if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
+          device = 'Mobile';
+        } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+          device = 'Tablet';
+        } else if (userAgent.includes('Windows') || userAgent.includes('Mac') || userAgent.includes('Linux')) {
+          device = 'Desktop';
+        }
+        
+        deviceCounts.set(device, (deviceCounts.get(device) || 0) + 1);
+      });
+
+      const deviceBreakdown = Array.from(deviceCounts.entries())
+        .map(([device, clicks]) => ({ device, clicks }))
+        .sort((a, b) => b.clicks - a.clicks);
+
+      // Calculate metrics
+      const totalClicks = urlData.click_count || 0;
+      const uniqueVisitors = recentClicksData?.length || 0;
+      const clickThroughRate = totalClicks > 0 ? Math.round((uniqueVisitors / totalClicks) * 100) : 0;
+
+      return {
+        url,
+        totalClicks,
+        uniqueVisitors,
+        clickThroughRate,
+        recentClicks,
+        clicksByDay,
+        topReferrers,
+        deviceBreakdown,
+      };
+    } catch (error) {
+      console.error("Error getting URL analytics:", error);
+      return null;
+    }
+  },
 }; 
