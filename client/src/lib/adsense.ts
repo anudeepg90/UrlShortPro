@@ -26,16 +26,16 @@ export interface AdSenseConfig {
 
 // Default configuration - replace with your actual AdSense details
 export const adSenseConfig: AdSenseConfig = {
-  publisherId: "ca-pub-YOUR_PUBLISHER_ID", // Replace with your actual publisher ID
+  publisherId: "ca-pub-5533166353045175", // Your actual publisher ID
   adSlots: {
-    headerBanner: "1234567890", // Replace with your actual ad slot IDs
-    inlineAfterForm: "1234567891",
-    midContent: "1234567892",
-    sidebar1: "1234567893",
-    sidebar2: "1234567894",
-    footerBanner: "1234567895",
+    headerBanner: "ca-pub-5533166353045175/1234567890", // Replace with your actual ad slot IDs
+    inlineAfterForm: "ca-pub-5533166353045175/1234567891",
+    midContent: "ca-pub-5533166353045175/1234567892",
+    sidebar1: "ca-pub-5533166353045175/1234567893",
+    sidebar2: "ca-pub-5533166353045175/1234567894",
+    footerBanner: "ca-pub-5533166353045175/1234567895",
   },
-  enabled: false, // Set to false to disable ads during development
+  enabled: true, // Set to false to disable ads during development
   lazyLoading: true, // Enable lazy loading for better performance
   performanceTracking: true, // Track ad performance metrics
   abTesting: false, // Enable A/B testing for ad placements
@@ -71,12 +71,9 @@ const performanceMetrics: Record<string, AdPerformanceMetrics> = {};
 export const loadAdSenseScript = (): void => {
   if (typeof window === 'undefined') return;
   
+  // Script is already loaded via HTML, just ensure adsbygoogle array exists
   if (!window.adsbygoogle) {
-    const script = document.createElement('script');
-    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-    document.head.appendChild(script);
+    window.adsbygoogle = [];
   }
 };
 

@@ -79,7 +79,7 @@ const AdSenseAd = ({
         className="adsbygoogle"
         style={{ display: 'block' }}
         data-ad-client={adSenseConfig.publisherId}
-        data-ad-slot={adSlot}
+        data-ad-slot={adSlot.split('/')[1] || adSlot}
         data-ad-format={adFormat}
         data-full-width-responsive={responsive}
       />

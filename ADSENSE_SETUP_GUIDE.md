@@ -16,6 +16,7 @@ This guide provides step-by-step instructions for setting up Google AdSense on y
 ### 2. Get Your Publisher ID
 Once approved, you'll receive:
 - **Publisher ID**: `ca-pub-XXXXXXXXXXXXXXXX` (replace in `client/src/lib/adsense.ts`)
+##google.com, pub-5533166353045175, DIRECT, f08c47fec0942fa0
 - **Ad Slot IDs**: Create ad units in AdSense dashboard
 
 ### 3. Create Ad Units
