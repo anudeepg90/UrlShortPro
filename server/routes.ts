@@ -4,6 +4,27 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertUrlSchema } from "@shared/schema";
 import { z } from "zod";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "default-jwt-secret-for-dev";
+
+// JWT middleware for authentication
+function authenticateToken(req: any, res: any, next: any) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+    req.user = user;
+    next();
+  });
+}
 
 function generateShortId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -118,11 +139,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Shorten URL endpoint (authenticated users)
-  app.post("/api/shorten", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
+  app.post("/api/shorten", authenticateToken, async (req, res) => {
     try {
       const data = frontendUrlSchema.parse(req.body);
       const user = req.user!;
@@ -175,100 +192,90 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Bulk shorten URLs (available to all authenticated users)
-  app.post("/api/shorten/bulk", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
+  app.post("/api/shorten/bulk", authenticateToken, async (req, res) => {
     // All authenticated users can use bulk shortening
     const user = req.user!;
 
     try {
       const { urls: urlList } = req.body;
       if (!Array.isArray(urlList) || urlList.length === 0) {
-        return res.status(400).json({ message: "Invalid URL list" });
+        return res.status(400).json({ message: "URLs array is required and must not be empty" });
       }
 
-      if (urlList.length > 40) {
-        return res.status(400).json({ message: "Maximum 40 URLs per batch" });
+      if (urlList.length > 100) {
+        return res.status(400).json({ message: "Maximum 100 URLs allowed per request" });
       }
 
-      const results: Array<any> = [];
+      const results = [];
+      const errors = [];
+      const csvData = [];
+
       for (const urlData of urlList) {
         try {
-          const data = frontendUrlSchema.parse(urlData);
-          // Check if custom alias is already taken
-          if (data.customAlias) {
-            // Check if custom alias is already taken by another URL's custom alias
-            const existingByCustomAlias = await storage.getUrlByCustomAlias(data.customAlias);
+          const validatedData = frontendUrlSchema.parse(urlData);
+          
+          // Check custom alias availability
+          if (validatedData.customAlias) {
+            const existingByCustomAlias = await storage.getUrlByCustomAlias(validatedData.customAlias);
             if (existingByCustomAlias) {
-              results.push({ error: "Custom alias already taken", originalUrl: data.longUrl });
+              errors.push({ url: validatedData.longUrl, error: "Custom alias already taken" });
               continue;
             }
-            // Check if custom alias is already being used as a shortId by another URL
-            const existingByShortId = await storage.getUrlByShortId(data.customAlias);
+            const existingByShortId = await storage.getUrlByShortId(validatedData.customAlias);
             if (existingByShortId) {
-              results.push({ error: "Custom alias conflicts with existing short link", originalUrl: data.longUrl });
+              errors.push({ url: validatedData.longUrl, error: "Custom alias conflicts with existing short link" });
               continue;
             }
           }
-          
+
           // Generate unique short ID
           let shortId: string;
           let attempts = 0;
           do {
-            shortId = generateShortId();
+            shortId = validatedData.customAlias || generateShortId();
             attempts++;
-          } while (await storage.getUrlByShortId(shortId) && attempts < 10);
+          } while (!validatedData.customAlias && await storage.getUrlByShortId(shortId) && attempts < 10);
 
           if (attempts >= 10) {
-            results.push({ error: "Failed to generate unique short ID", originalUrl: data.longUrl });
+            errors.push({ url: validatedData.longUrl, error: "Failed to generate unique short ID" });
             continue;
           }
 
           const url = await storage.createUrl({
-            ...data,
+            ...validatedData,
             userId: user.id,
             shortId,
-            title: data.title || extractTitle(data.longUrl),
-            tags: data.tags || [],
+            title: validatedData.title || extractTitle(validatedData.longUrl),
+            tags: validatedData.tags || [],
           });
 
           results.push(url);
+          
+          // Add to CSV data
+          csvData.push({
+            url: validatedData.longUrl,
+            alias: url.customAlias || url.shortId,
+            tags: (validatedData.tags || []).join(', '),
+            shortLink: `https://${process.env.FRONTEND_DOMAIN || 'tinyyourl.com'}/${url.customAlias || url.shortId}`
+          });
         } catch (error) {
-          results.push({ error: "Invalid URL data", originalUrl: urlData.longUrl });
+          if (error instanceof z.ZodError) {
+            errors.push({ url: urlData.longUrl || 'Invalid URL', error: "Invalid URL format" });
+          } else {
+            errors.push({ url: urlData.longUrl || 'Unknown URL', error: "Failed to process URL" });
+          }
         }
       }
 
-      // Generate CSV data
-      const csvData = results.map(result => {
-        if (result.error) {
-          return {
-            url: result.originalUrl || '',
-            alias: '',
-            tags: '',
-            shortLink: '',
-            status: 'Error: ' + result.error
-          };
-        } else {
-          const shortLink = `${req.protocol}://${req.get('host')}/${result.customAlias || result.shortId}`;
-          return {
-            url: result.longUrl,
-            alias: result.customAlias || '',
-            tags: (result.tags || []).join(','),
-            shortLink: shortLink,
-            status: 'Success'
-          };
-        }
-      });
-
-      res.json({ 
+      res.status(200).json({
+        successCount: results.length,
+        errorCount: errors.length,
         results,
-        csvData,
-        successCount: results.filter(r => !r.error).length,
-        errorCount: results.filter(r => r.error).length
+        errors,
+        csvData
       });
     } catch (error) {
+      console.error("Error in bulk shorten endpoint:", error);
       res.status(500).json({ message: "Failed to process bulk URLs" });
     }
   });
@@ -340,11 +347,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get user's URLs (authenticated users)
-  app.get("/api/urls", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
+  app.get("/api/urls", authenticateToken, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -392,12 +395,43 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get user stats
-  app.get("/api/stats", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
+  // Track click for short URL (public endpoint)
+  app.post("/api/url/:shortId/click", async (req, res) => {
+    try {
+      const { shortId } = req.params;
+      
+      // Try to find by short ID first
+      let url = await storage.getUrlByShortId(shortId);
+      
+      // If not found, try custom alias
+      if (!url) {
+        url = await storage.getUrlByCustomAlias(shortId);
+      }
 
+      if (!url) {
+        return res.status(404).json({ message: "URL not found" });
+      }
+
+      // Increment click count
+      await storage.incrementClickCount(url.id);
+      
+      // Track detailed click info
+      await storage.createUrlClick({
+        urlId: url.id,
+        ip: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        referrer: req.get('Referer'),
+      });
+
+      res.json({ message: "Click tracked successfully" });
+    } catch (error) {
+      console.error("Error tracking click:", error);
+      res.status(500).json({ message: "Failed to track click" });
+    }
+  });
+
+  // Get user stats
+  app.get("/api/stats", authenticateToken, async (req, res) => {
     try {
       const stats = await storage.getUserStats(req.user!.id);
       res.json(stats);
@@ -407,11 +441,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get URL analytics (authenticated users)
-  app.get("/api/url/:id/analytics", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
+  app.get("/api/url/:id/analytics", authenticateToken, async (req, res) => {
     try {
       const urlId = parseInt(req.params.id);
       const analytics = await storage.getUrlAnalytics(urlId, req.user!.id);
@@ -428,11 +458,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Update URL (available to all authenticated users)
-  app.put("/api/url/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
+  app.put("/api/url/:id", authenticateToken, async (req, res) => {
     // All authenticated users can edit URLs
     const user = req.user!;
 
@@ -469,17 +495,13 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Delete URL
-  app.delete("/api/url/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
+  app.delete("/api/url/:id", authenticateToken, async (req, res) => {
     try {
       const urlId = parseInt(req.params.id);
       const deleted = await storage.deleteUrl(urlId, req.user!.id);
 
       if (!deleted) {
-        return res.status(404).json({ message: "URL not found" });
+        return res.status(404).json({ message: "URL not found or access denied" });
       }
 
       res.json({ message: "URL deleted successfully" });
@@ -510,18 +532,22 @@ export function registerRoutes(app: Express): Server {
         return next(); // Let frontend handle 404s for non-existent short URLs
       }
 
-      // Track the click
-      await storage.incrementClickCount(url.id);
-      
-      // Track detailed click info
-      await storage.createUrlClick({
-        urlId: url.id,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-        referrer: req.get('Referer'),
-      });
-
+      // Redirect immediately for fastest response
       res.redirect(url.longUrl);
+      
+      // Track the click asynchronously (don't wait for it)
+      Promise.all([
+        storage.incrementClickCount(url.id),
+        storage.createUrlClick({
+          urlId: url.id,
+          ip: req.ip,
+          userAgent: req.get('User-Agent'),
+          referrer: req.get('Referer'),
+        })
+      ]).catch(error => {
+        // Log error but don't fail the redirect
+        console.error('Error tracking click:', error);
+      });
     } catch (error) {
       next(); // Let frontend handle errors
     }

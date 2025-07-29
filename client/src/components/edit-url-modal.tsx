@@ -1,22 +1,27 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Edit, Crown, Globe, ExternalLink } from "lucide-react";
+import { Edit, Crown, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { config } from "@/lib/config";
 import { useAuth } from "@/hooks/use-auth";
+import { appConfig } from "@/lib/config";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Globe, ExternalLink } from "lucide-react";
+
+// JWT token management
+const getToken = () => localStorage.getItem('authToken');
 
 const editUrlSchema = z.object({
-  longUrl: z.string().url("Please enter a valid URL"),
-  customAlias: z.string().optional(),
   title: z.string().optional(),
+  customAlias: z.string().optional(),
+  longUrl: z.string().url("Please enter a valid URL"),
   tags: z.array(z.string()).optional(),
 });
 
@@ -43,10 +48,8 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [newTag, setNewTag] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [isCheckingAlias, setIsCheckingAlias] = useState(false);
-  const [aliasAvailable, setAliasAvailable] = useState<boolean | null>(null);
+  const [newTag, setNewTag] = useState("");
 
   const form = useForm<EditUrlData>({
     resolver: zodResolver(editUrlSchema),
@@ -73,12 +76,17 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
 
   const updateUrlMutation = useMutation({
     mutationFn: async (data: EditUrlData) => {
-      const response = await fetch(`${config.apiBaseUrl}/api/url/${url?.id}`, {
+      const token = getToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/url/${url?.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        headers,
         body: JSON.stringify({
           ...data,
           tags: tags, // Use the local tags state
@@ -139,7 +147,7 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
     if (!alias || alias === url?.customAlias) return null;
     
     try {
-      const response = await fetch(`${config.apiBaseUrl}/api/url/${alias}`, {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/url/${alias}`, {
         method: 'HEAD'
       });
       if (response.ok) {
@@ -189,7 +197,7 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
               <div className="flex items-start gap-3">
                 <ExternalLink className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                 <p className="text-sm font-mono text-blue-800 break-all flex-1">
-                  {config.apiBaseUrl}/{url.customAlias || url.shortId}
+                  {appConfig.apiBaseUrl}/{url.customAlias || url.shortId}
                 </p>
               </div>
             </div>
@@ -205,7 +213,7 @@ export default function EditUrlModal({ isOpen, onClose, url }: EditUrlModalProps
             </Label>
             <div className="flex flex-col sm:flex-row gap-0">
               <div className="flex items-center px-4 py-3 bg-gray-100 border border-gray-300 rounded-l-xl text-sm text-gray-600 font-mono flex-shrink-0">
-                {config.apiBaseUrl}/
+                {appConfig.apiBaseUrl}/
               </div>
               <Input
                 id="customAlias"

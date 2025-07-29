@@ -28,14 +28,14 @@ export interface AdSenseConfig {
 export const adSenseConfig: AdSenseConfig = {
   publisherId: "ca-pub-5533166353045175", // Your actual publisher ID
   adSlots: {
-    headerBanner: "ca-pub-5533166353045175/1234567890", // Replace with your actual ad slot IDs
-    inlineAfterForm: "ca-pub-5533166353045175/1234567891",
-    midContent: "ca-pub-5533166353045175/1234567892",
-    sidebar1: "ca-pub-5533166353045175/1234567893",
-    sidebar2: "ca-pub-5533166353045175/1234567894",
-    footerBanner: "ca-pub-5533166353045175/1234567895",
+    headerBanner: "ca-pub-5533166353045175/1234567890", // Removed - no header ads
+    inlineAfterForm: "ca-pub-5533166353045175/1234567891", // After detailed content
+    midContent: "ca-pub-5533166353045175/1234567892", // Removed - no mid-content ads
+    sidebar1: "ca-pub-5533166353045175/1234567893", // For future sidebar implementation
+    sidebar2: "ca-pub-5533166353045175/1234567894", // For future sidebar implementation
+    footerBanner: "ca-pub-5533166353045175/1234567895", // Single footer ad
   },
-  enabled: true, // Set to false to disable ads during development
+  enabled: true, // ENABLED for AdSense verification
   lazyLoading: true, // Enable lazy loading for better performance
   performanceTracking: true, // Track ad performance metrics
   abTesting: false, // Enable A/B testing for ad placements
@@ -83,7 +83,7 @@ export const pushAdToAdSense = (): void => {
   try {
     (window.adsbygoogle = window.adsbygoogle || []).push({});
   } catch (error) {
-    console.log('AdSense error:', error);
+    // console.log('AdSense error:', error);
   }
 };
 
@@ -116,7 +116,7 @@ export const trackAdImpression = (adSlot: string): void => {
     });
   }
   
-  console.log(`Ad impression: ${adSlot}`, performanceMetrics[adSlot]);
+  // console.log(`Ad impression: ${adSlot}`, performanceMetrics[adSlot]);
 };
 
 export const trackAdClick = (adSlot: string): void => {
@@ -146,7 +146,7 @@ export const trackAdClick = (adSlot: string): void => {
     });
   }
   
-  console.log(`Ad click: ${adSlot}`, performanceMetrics[adSlot]);
+  // console.log(`Ad click: ${adSlot}`, performanceMetrics[adSlot]);
 };
 
 // Get performance metrics
@@ -264,7 +264,7 @@ export const monitorAdPerformance = (): void => {
   setInterval(() => {
     const metrics = getAdPerformance();
     if (metrics && typeof metrics === 'object') {
-      console.log('Ad Performance Summary:', metrics);
+      // console.log('Ad Performance Summary:', metrics);
       
       // Send to analytics
       if (window.gtag) {

@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, MousePointer, TrendingUp, Percent } from "lucide-react";
-import { config } from "@/lib/config";
+import { appConfig } from "@/lib/config";
+
+// JWT token management
+const getToken = () => localStorage.getItem('authToken');
 
 interface Stats {
   totalLinks: number;
@@ -12,8 +15,14 @@ export default function StatsCards() {
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["/api/stats"],
     queryFn: async () => {
-      const response = await fetch(`${config.apiBaseUrl}/api/stats`, {
-        credentials: "include",
+      const token = getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/stats`, {
+        headers,
       });
       if (!response.ok) throw new Error("Failed to fetch stats");
       return response.json();

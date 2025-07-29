@@ -129,6 +129,8 @@ export interface IStorage {
     }>;
   } | null>;
   
+  getRecentUrls(limit: number): Promise<Url[]>;
+  
   sessionStore: session.Store;
 }
 
@@ -255,6 +257,22 @@ export class DatabaseStorage implements IStorage {
     }>;
   } | null> {
     return await supabaseHelpers.getUrlAnalytics(urlId, userId);
+  }
+
+  async getRecentUrls(limit: number): Promise<Url[]> {
+    try {
+      const { data, error } = await supabase
+        .from('urls')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) throw error;
+      return data as Url[];
+    } catch (error) {
+      console.error('Error fetching recent URLs:', error);
+      return [];
+    }
   }
 }
 

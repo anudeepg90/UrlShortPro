@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, ReactNode, useContext } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { config } from "@/lib/config";
+import { appConfig } from "@/lib/config";
 
 interface User {
   id: number;
@@ -38,6 +38,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// JWT token management
+const getToken = () => localStorage.getItem('authToken');
+const setToken = (token: string) => localStorage.setItem('authToken', token);
+const removeToken = () => localStorage.removeItem('authToken');
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
@@ -46,23 +51,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: authData, error, refetch } = useQuery<AuthResponse>({
     queryKey: ["auth"],
     queryFn: async () => {
-      console.log("🔍 [AUTH] Fetching user data...");
-      console.log("🔗 [AUTH] API URL:", `${config.apiBaseUrl}/api/user`);
+          // console.log("🔍 [AUTH] Fetching user data...");
+    // console.log("🔗 [AUTH] API URL:", `${appConfig.apiBaseUrl}/api/user`);
+      
+      const token = getToken();
+      if (!token) {
+        // console.log("❌ [AUTH] No token found");
+        return { user: null, isAuthenticated: false };
+      }
       
       try {
-        const response = await fetch(`${config.apiBaseUrl}/api/user`, {
+        const response = await fetch(`${appConfig.apiBaseUrl}/api/user`, {
           method: "GET",
-          credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
           },
         });
 
-        console.log("📡 [AUTH] Response status:", response.status);
-        console.log("📡 [AUTH] Response headers:", Object.fromEntries(response.headers.entries()));
+        // console.log("📡 [AUTH] Response status:", response.status);
+        // console.log("📡 [AUTH] Response headers:", Object.fromEntries(response.headers.entries()));
 
-        if (response.status === 401) {
-          console.log("❌ [AUTH] User not authenticated");
+        if (response.status === 401 || response.status === 403) {
+          // console.log("❌ [AUTH] Token invalid or expired");
+          removeToken();
           return { user: null, isAuthenticated: false };
         }
 
@@ -72,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const userData = await response.json();
-        console.log("✅ [AUTH] User data received:", userData);
+        // console.log("✅ [AUTH] User data received:", userData);
         
         return {
           user: userData,
@@ -80,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       } catch (error) {
         console.error("❌ [AUTH] Fetch error:", error);
+        removeToken();
         throw error;
       }
     },
@@ -90,19 +103,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
-      console.log("🔐 [AUTH] Attempting login...");
-      console.log("🔗 [AUTH] Login URL:", `${config.apiBaseUrl}/api/login`);
+      // console.log("🔐 [AUTH] Attempting login...");
+      // console.log("🔗 [AUTH] Login URL:", `${appConfig.apiBaseUrl}/api/login`);
       
-      const response = await fetch(`${config.apiBaseUrl}/api/login`, {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/login`, {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ username, password }),
       });
 
-      console.log("📡 [AUTH] Login response status:", response.status);
+      // console.log("📡 [AUTH] Login response status:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -110,12 +122,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(errorData.message || "Login failed");
       }
 
-      const userData = await response.json();
-      console.log("✅ [AUTH] Login successful:", userData);
-      return userData;
+      const data = await response.json();
+      // console.log("✅ [AUTH] Login successful:", data);
+      
+      // Store the JWT token
+      setToken(data.token);
+      
+      return data.user;
     },
     onSuccess: () => {
-      console.log("🔄 [AUTH] Refetching user data after login");
+      // console.log("🔄 [AUTH] Refetching user data after login");
       queryClient.invalidateQueries({ queryKey: ["auth"] });
     },
   });
@@ -123,19 +139,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Register mutation
   const registerMutation = useMutation({
     mutationFn: async ({ username, email, password }: { username: string; email: string; password: string }) => {
-      console.log("📝 [AUTH] Attempting registration...");
-      console.log("🔗 [AUTH] Register URL:", `${config.apiBaseUrl}/api/register`);
+      // console.log("📝 [AUTH] Attempting registration...");
+      // console.log("🔗 [AUTH] Register URL:", `${appConfig.apiBaseUrl}/api/register`);
       
-      const response = await fetch(`${config.apiBaseUrl}/api/register`, {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/register`, {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ username, email, password }),
       });
 
-      console.log("📡 [AUTH] Register response status:", response.status);
+      // console.log("📡 [AUTH] Register response status:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -143,12 +158,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(errorData.message || "Registration failed");
       }
 
-      const userData = await response.json();
-      console.log("✅ [AUTH] Registration successful:", userData);
-      return userData;
+      const data = await response.json();
+      // console.log("✅ [AUTH] Registration successful:", data);
+      
+      // Store the JWT token
+      setToken(data.token);
+      
+      return data.user;
     },
     onSuccess: () => {
-      console.log("🔄 [AUTH] Refetching user data after registration");
+      // console.log("🔄 [AUTH] Refetching user data after registration");
       queryClient.invalidateQueries({ queryKey: ["auth"] });
     },
   });
@@ -156,40 +175,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      console.log("🚪 [AUTH] Attempting logout...");
-      console.log("🔗 [AUTH] Logout URL:", `${config.apiBaseUrl}/api/logout`);
+      // console.log("🚪 [AUTH] Attempting logout...");
+      // console.log("🔗 [AUTH] Logout URL:", `${appConfig.apiBaseUrl}/api/logout`);
       
-      const response = await fetch(`${config.apiBaseUrl}/api/logout`, {
+      const token = getToken();
+      if (!token) {
+        // console.log("✅ [AUTH] No token to logout");
+        return;
+      }
+
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/logout`, {
         method: "POST",
-        credentials: "include",
         headers: {
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      console.log("📡 [AUTH] Logout response status:", response.status);
+      // console.log("📡 [AUTH] Logout response status:", response.status);
 
-      if (!response.ok) {
-        console.error("❌ [AUTH] Logout failed:", response.status, response.statusText);
-        throw new Error("Logout failed");
+      if (response.ok) {
+        // console.log("✅ [AUTH] Logout successful");
+      } else {
+        console.error("❌ [AUTH] Logout failed:", response.status);
       }
 
-      console.log("✅ [AUTH] Logout successful");
+      // console.log("🔄 [AUTH] Clearing user data after logout");
+      removeToken();
     },
     onSuccess: () => {
-      console.log("🔄 [AUTH] Clearing user data after logout");
-      queryClient.setQueryData(["auth"], { user: null, isAuthenticated: false });
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
     },
   });
 
   useEffect(() => {
     if (authData !== undefined) {
       setIsLoading(false);
-      console.log("🏁 [AUTH] Auth state loaded:", {
-        isAuthenticated: authData?.isAuthenticated,
-        user: authData?.user ? "User logged in" : "No user",
-        environment: config.environment,
-      });
+      // console.log("🏁 [AUTH] Auth state loaded:", {
+      //   isAuthenticated: authData?.isAuthenticated,
+      //   user: authData?.user ? "User logged in" : "No user",
+      //   environment: import.meta.env.MODE || 'development',
+      // });
     }
   }, [authData]);
 

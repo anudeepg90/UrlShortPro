@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, BarChart3, Shield, Zap, Home, ArrowLeft } from "lucide-react";
+import { BarChart3, Shield, Zap, Home, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import Logo from "@/components/logo";
 
 const loginSchema = insertUserSchema.pick({ username: true, password: true });
 const registerSchema = insertUserSchema.extend({
@@ -112,12 +113,7 @@ export default function AuthPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-white/80 backdrop-blur-sm shadow-lg border border-gray-200/50">
           <CardHeader className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-                <Link className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LinkVault</span>
-            </div>
+            <Logo size="lg" className="justify-center mb-4" />
             <CardTitle>Reset Password</CardTitle>
             <CardDescription>
               Enter your email address and we'll send you a link to reset your password.
@@ -202,12 +198,7 @@ export default function AuthPage() {
       {/* Navigation Bar */}
       <div className="p-4 border-b bg-white/80 backdrop-blur-md">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-              <Link className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LinkVault</span>
-          </div>
+          <Logo size="md" />
           <RouterLink href="/">
             <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200">
               <Home className="h-4 w-4 mr-2" />
@@ -222,37 +213,27 @@ export default function AuthPage() {
         <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md bg-white/80 backdrop-blur-sm shadow-lg border border-gray-200/50">
           <CardHeader className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-                <Link className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LinkVault</span>
-            </div>
-            <CardTitle>Welcome to LinkVault</CardTitle>
+            <Logo size="lg" className="justify-center mb-4" />
+            <CardTitle>Welcome to TinyYOUrl</CardTitle>
             <CardDescription>
               Sign in to your account or create a new one to start shortening URLs
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Sign In</TabsTrigger>
                 <TabsTrigger value="register">Sign Up</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login" className="space-y-4">
-                {loginError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{loginError.message}</p>
-                  </div>
-                )}
                 <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="login-username">Username</Label>
                     <Input
-                      id="username"
+                      id="login-username"
                       {...loginForm.register("username")}
-                      disabled={isLoginLoading}
+                      placeholder="Enter your username"
                     />
                     {loginForm.formState.errors.username && (
                       <p className="text-sm text-red-600">{loginForm.formState.errors.username.message}</p>
@@ -260,52 +241,50 @@ export default function AuthPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="login-password">Password</Label>
                     <Input
-                      id="password"
+                      id="login-password"
                       type="password"
                       {...loginForm.register("password")}
-                      disabled={isLoginLoading}
+                      placeholder="Enter your password"
                     />
                     {loginForm.formState.errors.password && (
                       <p className="text-sm text-red-600">{loginForm.formState.errors.password.message}</p>
                     )}
                   </div>
                   
-                  <div className="text-right mb-4">
-                    <Button
-                      type="button"
-                      variant="link"
-                      onClick={() => setShowForgotPassword(true)}
-                      className="text-sm p-0 h-auto text-blue-600 hover:text-blue-700"
-                    >
-                      Forgot password?
-                    </Button>
-                  </div>
+                  {loginError && (
+                    <p className="text-sm text-red-600">{typeof loginError === 'string' ? loginError : loginError.message}</p>
+                  )}
                   
-                  <Button
-                    type="submit"
+                  <Button 
+                    type="submit" 
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
                     disabled={isLoginLoading}
                   >
-                    {isLoginLoading ? "Signing in..." : "Sign In"}
+                    {isLoginLoading ? "Signing In..." : "Sign In"}
                   </Button>
+                  
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Forgot your password?
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
               
               <TabsContent value="register" className="space-y-4">
-                {registerError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{registerError.message}</p>
-                  </div>
-                )}
                 <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reg-username">Username</Label>
+                    <Label htmlFor="register-username">Username</Label>
                     <Input
-                      id="reg-username"
+                      id="register-username"
                       {...registerForm.register("username")}
-                      disabled={isRegisterLoading}
+                      placeholder="Choose a username"
                     />
                     {registerForm.formState.errors.username && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.username.message}</p>
@@ -313,12 +292,12 @@ export default function AuthPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="register-email">Email</Label>
                     <Input
-                      id="email"
+                      id="register-email"
                       type="email"
                       {...registerForm.register("email")}
-                      disabled={isRegisterLoading}
+                      placeholder="Enter your email"
                     />
                     {registerForm.formState.errors.email && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.email.message}</p>
@@ -326,12 +305,12 @@ export default function AuthPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password">Password</Label>
+                    <Label htmlFor="register-password">Password</Label>
                     <Input
-                      id="reg-password"
+                      id="register-password"
                       type="password"
                       {...registerForm.register("password")}
-                      disabled={isRegisterLoading}
+                      placeholder="Choose a password"
                     />
                     {registerForm.formState.errors.password && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.password.message}</p>
@@ -339,89 +318,73 @@ export default function AuthPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Label htmlFor="register-confirm-password">Confirm Password</Label>
                     <Input
-                      id="confirmPassword"
+                      id="register-confirm-password"
                       type="password"
                       {...registerForm.register("confirmPassword")}
-                      disabled={isRegisterLoading}
+                      placeholder="Confirm your password"
                     />
                     {registerForm.formState.errors.confirmPassword && (
                       <p className="text-sm text-red-600">{registerForm.formState.errors.confirmPassword.message}</p>
                     )}
                   </div>
                   
-                  <Button
-                    type="submit"
+                  {registerError && (
+                    <p className="text-sm text-red-600">{typeof registerError === 'string' ? registerError : registerError.message}</p>
+                  )}
+                  
+                  <Button 
+                    type="submit" 
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
                     disabled={isRegisterLoading}
                   >
-                    {isRegisterLoading ? "Creating account..." : "Create Account"}
+                    {isRegisterLoading ? "Creating Account..." : "Create Account"}
                   </Button>
                 </form>
               </TabsContent>
             </Tabs>
-            
-            {/* Navigation buttons */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex space-x-2">
-                <RouterLink href="/" className="flex-1">
-                  <Button variant="outline" className="w-full hover:bg-blue-50 hover:border-blue-300 transition-all duration-200">
-                    <Home className="h-4 w-4 mr-2" />
-                    Continue as Guest
-                  </Button>
-                </RouterLink>
-                <RouterLink href="/" className="flex-1">
-                  <Button variant="ghost" className="w-full">
-                    Cancel
-                  </Button>
-                </RouterLink>
-              </div>
-              <p className="text-xs text-gray-500 text-center mt-2">
-                You can still shorten URLs without an account
-              </p>
-            </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Right Column - Hero Section */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 items-center justify-center p-8">
-        <div className="max-w-md text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <Link className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Powerful URL Shortening Platform
-          </h2>
-          <p className="text-gray-600 mb-8">
-            Create short, branded links with advanced analytics and premium features
-          </p>
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
-                <BarChart3 className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-sm text-gray-700">Advanced Analytics & Tracking</span>
+        </div>
+        
+        {/* Right Column - Features */}
+        <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 items-center justify-center p-8">
+          <div className="max-w-md text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <BarChart3 className="h-8 w-8 text-white" />
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Powerful URL Shortening Platform
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Create short, branded links with advanced analytics and premium features
+            </p>
             
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                <Zap className="h-4 w-4 text-white" />
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <BarChart3 className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm text-gray-700">Advanced Analytics & Tracking</span>
               </div>
-              <span className="text-sm text-gray-700">Custom Aliases & Bulk Operations</span>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
-                <Shield className="h-4 w-4 text-white" />
+              
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Zap className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm text-gray-700">Custom Aliases & Bulk Operations</span>
               </div>
-              <span className="text-sm text-gray-700">Secure & Reliable Platform</span>
+              
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Shield className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm text-gray-700">Secure & Reliable Platform</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

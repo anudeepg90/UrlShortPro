@@ -14,7 +14,7 @@ import { Link, Copy, Check, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
 import { useState } from "react";
-
+import { appConfig } from "@/lib/config";
 
 
 const shortenSchema = insertUrlSchema.extend({
@@ -76,7 +76,7 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
   });
 
   const getShortUrl = (url: any) => {
-    const shortUrl = `${window.location.origin}/${url.customAlias || url.shortId}`;
+    const shortUrl = `https://${appConfig.shortUrlDomain}/${url.customAlias || url.shortId}`;
     return shortUrl;
   };
 
@@ -331,7 +331,7 @@ export default function ShortenModal({ isOpen, onClose }: ShortenModalProps) {
             <Button
               type="submit"
               disabled={shortenMutation.isPending || !form.formState.isValid}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg transition-all duration-300"
             >
               <Link className="h-4 w-4" />
               <span>{shortenMutation.isPending ? "Creating..." : "Shorten URL"}</span>

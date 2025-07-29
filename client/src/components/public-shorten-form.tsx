@@ -9,7 +9,7 @@ import { Link, Copy, Check, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { config } from "@/lib/config";
+import { appConfig } from "@/lib/config";
 
 const shortenSchema = z.object({
   longUrl: z.string().url("Please enter a valid URL"),
@@ -41,7 +41,7 @@ export default function PublicShortenForm() {
   const onSubmit = async (data: ShortenData) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/api/shorten/public`, {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/shorten/public`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -75,7 +75,7 @@ export default function PublicShortenForm() {
   };
 
   const getShortUrl = (url: ShortenedUrl) => {
-    return `${config.apiBaseUrl}/${url.shortId}`;
+    return `https://${appConfig.shortUrlDomain}/${url.shortId}`;
   };
 
   const downloadQrCode = () => {
@@ -117,68 +117,70 @@ export default function PublicShortenForm() {
   if (shortenedUrl) {
     return (
       <Card className="bg-white shadow-lg border border-gray-200">
-        <CardContent className="p-8">
+        <CardContent className="p-4 sm:p-6 lg:p-8">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="h-8 w-8 text-green-600" />
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">URL Shortened Successfully!</h3>
-            <p className="text-gray-600">Your new short URL is ready to share</p>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">URL Shortened Successfully!</h3>
+            <p className="text-sm sm:text-base text-gray-600">Your new short URL is ready to share</p>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Original URL
               </label>
-              <p className="text-sm text-gray-600 truncate">{shortenedUrl.longUrl}</p>
+              <p className="text-xs sm:text-sm text-gray-600 break-all">{shortenedUrl.longUrl}</p>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-4">
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Shortened URL
               </label>
-              <div className="flex items-center space-x-2">
-                <code className="flex-1 text-primary font-mono font-medium">
+              <div className="space-y-3">
+                <code className="block text-sm sm:text-base text-primary font-mono font-medium break-all">
                   {getShortUrl(shortenedUrl)}
                 </code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyToClipboard}
-                  className="flex items-center space-x-1"
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                  <span className="text-xs">{copied ? "Copied!" : "Copy"}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(getShortUrl(shortenedUrl), '_blank')}
-                  className="flex items-center space-x-1"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="text-xs">Test</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowQr(true)}
-                  className="flex items-center space-x-1"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z" /></svg>
-                  <span className="text-xs">QR</span>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={copyToClipboard}
+                    className="flex items-center space-x-1 text-xs sm:text-sm"
+                  >
+                    {copied ? (
+                      <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
+                    )}
+                    <span className="hidden sm:inline">{copied ? "Copied!" : "Copy"}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(getShortUrl(shortenedUrl), '_blank')}
+                    className="flex items-center space-x-1 text-xs sm:text-sm"
+                  >
+                    <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Test</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowQr(true)}
+                    className="flex items-center space-x-1 text-xs sm:text-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z" /></svg>
+                    <span className="hidden sm:inline">QR</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
 
           <Dialog open={showQr} onOpenChange={setShowQr}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-sm sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>QR Code for Short URL</DialogTitle>
               </DialogHeader>
@@ -189,9 +191,9 @@ export default function PublicShortenForm() {
                   size={2048}
                   level="H"
                   includeMargin={true}
-                  style={{ width: '100%', height: 'auto', maxWidth: '400px', background: 'white' }}
+                  style={{ width: '100%', height: 'auto', maxWidth: '300px', background: 'white' }}
                 />
-                <Button onClick={downloadQrCode} className="w-full bg-primary text-white">
+                <Button onClick={downloadQrCode} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
                   Download as JPG (4K)
                 </Button>
               </div>
@@ -199,7 +201,7 @@ export default function PublicShortenForm() {
           </Dialog>
 
           <div className="flex justify-center mt-6">
-            <Button onClick={handleNewUrl} variant="outline">
+            <Button onClick={handleNewUrl} variant="outline" className="w-full sm:w-auto">
               Shorten Another URL
             </Button>
           </div>
@@ -210,26 +212,26 @@ export default function PublicShortenForm() {
 
   return (
     <Card className="bg-white shadow-lg border border-gray-200">
-      <CardContent className="p-8">
+      <CardContent className="p-4 sm:p-6 lg:p-8">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Link className="h-8 w-8 text-primary" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Link className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">Shorten Your URL</h3>
-          <p className="text-gray-600">Paste your long URL below and get a short link instantly</p>
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Shorten Your URL</h3>
+          <p className="text-sm sm:text-base text-gray-600">Paste your long URL below and get a short link instantly</p>
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           <div className="space-y-2">
             <Input
               type="url"
               placeholder="https://example.com/your-very-long-url"
               {...form.register("longUrl")}
               disabled={isLoading}
-              className="text-center text-lg py-6"
+              className="text-center text-base sm:text-lg py-4 sm:py-6"
             />
             {form.formState.errors.longUrl && (
-              <p className="text-sm text-red-600 text-center">
+              <p className="text-xs sm:text-sm text-red-600 text-center">
                 {form.formState.errors.longUrl.message}
               </p>
             )}
@@ -238,24 +240,24 @@ export default function PublicShortenForm() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-primary hover:bg-blue-600 text-white py-6 text-lg"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 sm:py-6 text-base sm:text-lg shadow-lg transition-all duration-300"
           >
             {isLoading ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2"></div>
                 Shortening...
               </>
             ) : (
               <>
-                <Link className="h-5 w-5 mr-2" />
+                <Link className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Shorten URL
               </>
             )}
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">
+        <div className="mt-4 sm:mt-6 text-center">
+          <p className="text-xs sm:text-sm text-gray-500">
             No account required • Free forever • Get analytics with premium
           </p>
         </div>

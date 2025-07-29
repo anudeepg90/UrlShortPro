@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import jwt from "jsonwebtoken";
 
 declare global {
   namespace Express {
@@ -14,6 +15,7 @@ declare global {
 }
 
 const scryptAsync = promisify(scrypt);
+const JWT_SECRET = process.env.JWT_SECRET || "default-jwt-secret-for-dev";
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -28,24 +30,40 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// JWT middleware for authentication
+function authenticateToken(req: any, res: any, next: any) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.sendStatus(401);
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.sendStatus(403);
+    }
+    req.user = user;
+    next();
+  });
+}
+
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "default-session-secret-for-dev",
-    resave: true, // ensure session is always saved
-    saveUninitialized: true, // save new sessions
-    store: storage.sessionStore,
+    resave: true,
+    saveUninitialized: true,
+    store: new session.MemoryStore(),
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      // domain removed for Cloud Run compatibility
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
     },
-    name: 'linkvault.sid', // custom session cookie name
-    rolling: true, // extend session on each request
+    name: 'linkvault.sid',
+    rolling: true,
   };
 
-  // Trust proxy for production (Cloud Run)
   if (process.env.NODE_ENV === 'production') {
     app.set("trust proxy", 1);
   }
@@ -53,8 +71,6 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-  
-
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
@@ -111,14 +127,11 @@ export function setupAuth(app: Express) {
 
       console.log("✅ [REGISTER] User created successfully:", user.id);
       
-      req.login(user, (err) => {
-        if (err) {
-          console.error("❌ [REGISTER] Login after registration failed:", err);
-          return next(err);
-        }
-        console.log("🎉 [REGISTER] User logged in after registration");
-        res.status(201).json(user);
-      });
+      // Generate JWT token
+      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+      
+      console.log("🎉 [REGISTER] User logged in after registration");
+      res.status(201).json({ user, token });
     } catch (error) {
       console.error("❌ [REGISTER] Registration error:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -135,41 +148,44 @@ export function setupAuth(app: Express) {
       }
       
       if (!user) {
-        console.log("❌ [LOGIN] Authentication failed for username:", req.body.username);
+        // console.log("❌ [LOGIN] Authentication failed for username:", req.body.username);
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      req.logIn(user, (err) => {
-        if (err) {
-          console.error("❌ [LOGIN] Session creation failed:", err);
-          return next(err);
-        }
-        
-        console.log("✅ [LOGIN] User logged in successfully:", user.username);
-        res.status(200).json(user);
-      });
+      // Generate JWT token
+      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+      
+      console.log("✅ [LOGIN] User logged in successfully:", user.username);
+      res.status(200).json({ user, token });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
-      if (err) return next(err);
-      res.sendStatus(200);
-    });
+    // For JWT, we don't need to do anything server-side
+    // The client should remove the token
+    res.sendStatus(200);
   });
 
-  app.get("/api/user", (req, res) => {
-    console.log("👤 [USER] User data request");
-    console.log("🔍 [USER] Session ID:", req.sessionID);
-    console.log("🔍 [USER] Is authenticated:", req.isAuthenticated());
-    console.log("🔍 [USER] User object:", req.user);
+  app.get("/api/user", authenticateToken, (req, res) => {
+    console.log("👤 [USER] User data request for user ID:", req.user?.id);
     
-    if (!req.isAuthenticated()) {
-      console.log("❌ [USER] User not authenticated");
+    if (!req.user || !req.user.id) {
+      console.log("❌ [USER] No user in request");
       return res.sendStatus(401);
     }
     
-    console.log("✅ [USER] Returning user data for:", req.user?.username);
-    res.json(req.user);
+    // Get fresh user data from database
+    storage.getUser(req.user.id).then(user => {
+      if (!user) {
+        console.log("❌ [USER] User not found in database");
+        return res.sendStatus(401);
+      }
+      
+      console.log("✅ [USER] Returning user data for:", user.username);
+      res.json(user);
+    }).catch(error => {
+      console.error("❌ [USER] Error fetching user data:", error);
+      res.sendStatus(500);
+    });
   });
 }

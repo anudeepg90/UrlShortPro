@@ -1,28 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { appConfig } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Edit, Trash2, ExternalLink, Copy, Check, BarChart3, QrCode, Search, Globe, Crown } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { 
+  Link, 
+  Copy, 
+  Check, 
+  ExternalLink, 
+  Edit, 
+  Trash2, 
+  BarChart3,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Crown,
+  QrCode
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from 'qrcode.react';
-import { config } from "@/lib/config";
-import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import EditUrlModal from "@/components/edit-url-modal";
+
+// JWT token management
+const getToken = () => localStorage.getItem('authToken');
 
 interface Url {
   id: number;
-  shortId: string;
   longUrl: string;
+  shortId: string;
   customAlias?: string;
   title?: string;
   tags?: string[];
   clickCount: number;
   createdAt: string;
+  lastAccessedAt?: string;
 }
 
 interface UrlTableProps {
@@ -44,8 +61,14 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   const { data: urls = [], isLoading, error } = useQuery({
     queryKey: ["urls", page, searchTerm],
     queryFn: async () => {
-      const response = await fetch(`${config.apiBaseUrl}/api/urls?page=${page}&limit=10&search=${searchTerm}`, {
-        credentials: "include",
+      const token = getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/urls?page=${page}&limit=10&search=${searchTerm}`, {
+        headers,
       });
       if (!response.ok) {
         throw new Error("Failed to fetch URLs");
@@ -76,18 +99,18 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
   });
 
   const getShortUrl = (url: Url) => {
-    return `${config.apiBaseUrl}/${url.shortId}`;
+    return `https://${appConfig.shortUrlDomain}/${url.customAlias || url.shortId}`;
   };
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (url: Url) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(text);
-      toast({
-        title: "Copied to clipboard",
-        description: "The URL has been copied to your clipboard.",
-      });
+      await navigator.clipboard.writeText(getShortUrl(url));
+      setCopied(url.id);
       setTimeout(() => setCopied(null), 2000);
+      toast({
+        title: "Copied to clipboard!",
+        description: "The shortened URL is now in your clipboard.",
+      });
     } catch (error) {
       toast({
         title: "Copy failed",
@@ -112,7 +135,13 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
     setShowQr(true);
   };
 
-  const downloadQrCode = () => {
+  const downloadQrCode = (url: Url) => {
+    setSelectedUrl(url);
+    setQrUrl(getShortUrl(url));
+    setShowQr(true);
+  };
+
+  const handleDownloadQr = () => {
     const canvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
     if (!canvas) return;
     const image = canvas.toDataURL('image/jpeg', 1.0);
@@ -120,6 +149,22 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
     link.href = image;
     link.download = 'short-url-qr.jpg';
     link.click();
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatTags = (tags: string[]) => {
+    return tags?.map((tag: string) => (
+      <Badge key={tag} variant="secondary" className="text-xs">
+        {tag}
+      </Badge>
+    )) || [];
   };
 
   const filteredUrls = urls?.filter((url: any) => 
@@ -165,7 +210,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
           <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Globe className="h-5 w-5 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" />
+            <Link className="h-5 w-5 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" />
             Your Links
             <Badge variant="secondary" className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
               {filteredUrls.length}
@@ -176,7 +221,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
         {filteredUrls.length === 0 ? (
           <div className="p-12 text-center">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Globe className="h-8 w-8 text-gray-400" />
+              <Link className="h-8 w-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No URLs found</h3>
             <p className="text-gray-600 max-w-sm mx-auto">
@@ -243,7 +288,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => copyToClipboard(getShortUrl(url))}
+                          onClick={() => copyToClipboard(url)}
                           className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
                           title="Copy to clipboard"
                         >
@@ -343,7 +388,7 @@ export default function UrlTable({ onShowAnalytics }: UrlTableProps) {
             <div className="flex space-x-2">
               <Button
                 variant="outline"
-                onClick={downloadQrCode}
+                onClick={() => handleDownloadQr(selectedUrl!)}
                 className="flex items-center space-x-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>

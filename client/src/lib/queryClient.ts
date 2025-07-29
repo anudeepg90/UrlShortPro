@@ -1,5 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { config } from "./config";
+import { appConfig } from "./config";
+
+// JWT token management
+const getToken = () => localStorage.getItem('authToken');
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -13,12 +16,21 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const fullUrl = url.startsWith('http') ? url : `${config.apiBaseUrl}${url}`;
+  const fullUrl = url.startsWith('http') ? url : `${appConfig.apiBaseUrl}${url}`;
+  const token = getToken();
+  
+  const headers: Record<string, string> = {};
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   const res = await fetch(fullUrl, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -32,9 +44,16 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const url = queryKey.join("/") as string;
-    const fullUrl = url.startsWith('http') ? url : `${config.apiBaseUrl}/${url}`;
+    const fullUrl = url.startsWith('http') ? url : `${appConfig.apiBaseUrl}/${url}`;
+    const token = getToken();
+    
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     const res = await fetch(fullUrl, {
-      credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

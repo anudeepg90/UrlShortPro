@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "linkvault-181c7"
-  }
+  },
+  "targets": {
+    "linkvault-181c7": {
+      "hosting": {
+        "default": [
+          "linkvault-181c7"
+        ],
+        "tinyyourl": [
+          "tinyyourl"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

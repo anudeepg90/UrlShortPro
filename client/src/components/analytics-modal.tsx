@@ -1,11 +1,29 @@
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
-import { X, TrendingUp, Users, MousePointer, BarChart3, Crown, Globe, Smartphone, Monitor, Tablet, ExternalLink, Calendar, MapPin } from "lucide-react";
+import { 
+  BarChart3, 
+  TrendingUp, 
+  Users, 
+  MousePointer, 
+  Calendar, 
+  Globe, 
+  Smartphone, 
+  Tablet, 
+  Monitor,
+  ExternalLink,
+  Copy,
+  Check,
+  X,
+  MapPin
+} from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
-import { config } from "@/lib/config";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { appConfig } from "@/lib/config";
 
 interface AnalyticsModalProps {
   isOpen: boolean;
@@ -94,8 +112,7 @@ export default function AnalyticsModal({ isOpen, onClose, urlId }: AnalyticsModa
 
   const getShortUrl = () => {
     if (!analytics?.url) return '';
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/${analytics.url.customAlias || analytics.url.shortId}`;
+    return `https://${appConfig.shortUrlDomain}/${analytics.url.customAlias || analytics.url.shortId}`;
   };
 
   if (error) {
